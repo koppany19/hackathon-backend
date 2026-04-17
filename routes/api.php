@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\OAuthController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/test', function () {
@@ -15,3 +16,4 @@ Route::post('/login', [AuthController::class, 'login']);
 
 
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
+Route::post('/google', [OAuthController::class, 'googleMobile']);

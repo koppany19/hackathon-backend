@@ -6,8 +6,8 @@ POST http://localhost/api/register
 Content-Type: application/json
 
 {
-    "name": "Teszt2 Elek",
-    "email": "teszt2@teszt.com",
+    "name": "Teszt23 Elek",
+    "email": "teszt23@teszt.com",
     "password": "password123"
 }
 
@@ -16,11 +16,11 @@ POST http://localhost/api/login
 Content-Type: application/json
 
 {
-    "email": "teszt2@teszt.com",
+    "email": "teszt23@teszt.com",
     "password": "password123"
 }
 
 ### Logout
 POST http://localhost/api/logout
 Content-Type: application/json
-Authorization: Bearer TOKEN_IDE
+Authorization: Bearer 10|Fj0Juxjb13eQwJZLuUSihTAogNleNypGqpDb6aFU99405e57
