@@ -20,6 +20,8 @@ Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
 Route::post('/google', [OAuthController::class, 'googleMobile']);
+//onboarding
+Route::post('/onboarding', [AuthController::class, 'onboarding'])->middleware('auth:sanctum');
 
 
 //search
@@ -36,3 +38,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/users/avatar', [ImageController::class, 'uploadAvatar']);
     Route::post('/feed/image', [ImageController::class, 'uploadFeedImage']);
 });
+
+
+

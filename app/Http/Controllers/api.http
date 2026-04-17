@@ -124,3 +124,100 @@ Content-Type: application/json
   "email": "teszt3@teszt.com",
   "password": "password123"
 }
+
+### Google OAuth szimulálása (először kell egy user token)
+### Először regisztrálj egy sima usert hogy legyen tokened
+POST http://localhost/api/register
+Content-Type: application/json
+
+{
+  "name": "Google User",
+  "email": "google@teszt.com",
+  "password": "password123"
+}
+
+###
+
+### Onboarding tesztelése (a fenti register token-jével)
+POST http://localhost/api/onboarding
+Content-Type: application/json
+Authorization: Bearer 2|twgmj5DAoWqJcxISsBvTu8aaPJi2d8VS8LQE0sUF453e1daf
+
+{
+  "university": 1,
+  "city": 1,
+  "sport_frequency": "2_3_week",
+  "food": {
+    "lactose_intolerant": false,
+    "gluten_intolerant": true,
+    "vegan": true,
+    "vegetarian": false,
+    "nut_allergy": false,
+    "halal": false,
+    "kosher": false,
+    "dairy_free": false,
+    "loves_spicy": true,
+    "meal_prep": true,
+    "street_food": false,
+    "fine_dining": false,
+    "fast_food": false,
+    "home_cooking": false
+  },
+  "sports": {
+    "sport_daily": true,
+    "sport_4_5_week": false,
+    "sport_2_3_week": false,
+    "sport_once_week": false,
+    "sport_rarely": false,
+    "football": false,
+    "basketball": true,
+    "running": false,
+    "cycling": false,
+    "swimming": false,
+    "tennis": false,
+    "gym": false,
+    "yoga": false,
+    "hiking": false,
+    "martial_arts": false,
+    "volleyball": false,
+    "badminton": false
+  },
+  "social": {
+    "reading": true,
+    "movies_series": false,
+    "gaming": false,
+    "music": false,
+    "art_drawing": false,
+    "photography": false,
+    "cooking": false,
+    "travel": false,
+    "concerts": false,
+    "theater": true,
+    "dancing": false,
+    "board_games": false,
+    "volunteering": false,
+    "coffee_culture": false,
+    "prefers_indoor": true,
+    "prefers_outdoor": true,
+    "large_groups": false,
+    "small_gatherings": false,
+    "night_owl": false,
+    "early_bird": false
+  },
+  "schedule": {
+    "data": [
+      {
+        "day_of_week": "monday",
+        "subject_name": "Algebra",
+        "start_time": "09:00",
+        "end_time": "11:00"
+      },
+      {
+        "day_of_week": "tuesday",
+        "subject_name": "Programozás",
+        "start_time": "14:00",
+        "end_time": "16:00"
+      }
+    ]
+  }
+}

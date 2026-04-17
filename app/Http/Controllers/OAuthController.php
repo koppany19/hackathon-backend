@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\UserProfile;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -24,21 +25,30 @@ class OAuthController extends Controller
 
             $googleUser = $response->json();
 
+            $isNewUser = !User::where('email', $googleUser['email'])->exists();
+
             $user = User::updateOrCreate(
                 ['email' => $googleUser['email']],
                 [
-                    'name' => $googleUser['name'] ?? $googleUser['email'],
-                    'google_id' => $googleUser['sub'],
+                    'name'              => $googleUser['name'] ?? $googleUser['email'],
+                    'google_id'         => $googleUser['sub'],
                     'email_verified_at' => now(),
-                    'password' => null,
+                    'password'          => null,
                 ]
             );
+
+            if ($isNewUser) {
+                UserProfile::create(['user_id' => $user->id]);
+            }
+
+            $user->load(['profile', 'university', 'city', 'scheduleItems']);
 
             $token = $user->createToken('mobile')->plainTextToken;
 
             return response()->json([
-                'user' => $user,
-                'token' => $token,
+                'user'         => $user,
+                'token'        => $token,
+                'needs_onboarding' => $isNewUser,
             ]);
 
         } catch (\Exception $e) {
