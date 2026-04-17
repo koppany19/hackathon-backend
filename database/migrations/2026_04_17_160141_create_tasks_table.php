@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('title');
             $table->text('description');
             $table->enum('category', ['sport', 'meal', 'mental_health']);
-            $table->enum('subcategory', ['individual', 'group', 'created']);
+            $table->enum('subcategory', ['individual', 'group', 'created_individual', 'created_group']);
             $table->unsignedInteger('xp_value');
             $table->boolean('is_active')->default(true);
             $table->time('time')->nullable();
