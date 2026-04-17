@@ -3,7 +3,13 @@
 namespace App\Models;
 use App\Models\City;
 use App\Models\University;
+use App\Models\UserProfile;
+use App\Models\DailyTask;
+use App\Models\CreatedTaskParticipant;
+use App\Models\ScheduleItem;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
@@ -41,6 +47,8 @@ class User extends Authenticatable
         'google_id',
         'university_id',
         'city_id',
+        'xp',
+        'profile_image'
     ];
 
     public function university(): BelongsTo
@@ -51,5 +59,25 @@ class User extends Authenticatable
     public function city(): BelongsTo
     {
         return $this->belongsTo(City::class);
+    }
+
+    public function profile(): HasOne
+    {
+        return $this->hasOne(UserProfile::class);
+    }
+
+    public function dailyTasks(): HasMany
+    {
+        return $this->hasMany(DailyTask::class);
+    }
+
+    public function taskParticipations(): HasMany
+    {
+        return $this->hasMany(CreatedTaskParticipant::class);
+    }
+
+    public function scheduleItems(): HasMany
+    {
+        return $this->hasMany(ScheduleItem::class);
     }
 }
