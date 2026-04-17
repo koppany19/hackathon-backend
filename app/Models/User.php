@@ -93,4 +93,9 @@ class User extends Authenticatable
         return $this->hasOne(Level::class, 'level', 'level')
             ->where('level', $this->level + 1);
     }
+
+    public function streak(): HasOne
+    {
+        return $this->hasOne(Streak::class);
+    }
 }

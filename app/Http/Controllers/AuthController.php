@@ -168,6 +168,7 @@ class AuthController extends Controller
             'university',
             'city',
             'scheduleItems',
+            'streak'
         ])->find($request->user()->id);
 
         $currentLevel = Level::where('level', $user->level)->first();
