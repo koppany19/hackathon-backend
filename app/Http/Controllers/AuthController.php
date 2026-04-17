@@ -96,8 +96,13 @@ class AuthController extends Controller
 
     public function onboarding(OnboardingRequest $request)
     {
+        Log::info('Onboarding request data:', $request->all());
+
         $user      = $request->user();
         $validated = $request->validated();
+
+        Log::info('Validated data:', $validated);
+        Log::info('User:', ['id' => $user->id, 'email' => $user->email]);
 
         $user->update([
             'university_id' => $validated['university'] ?? null,
