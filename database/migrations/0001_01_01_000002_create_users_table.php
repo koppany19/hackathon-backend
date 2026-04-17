@@ -18,8 +18,10 @@ return new class extends Migration
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password')->nullable();
+            $table->string('profile_image')->nullable();
             $table->foreignId('university_id')->nullable()->constrained()->nullOnDelete();
             $table->foreignId('city_id')->nullable()->constrained()->nullOnDelete();
+            $table->integer('xp')->default(0);
             $table->rememberToken();
             $table->timestamps();
         });
