@@ -2,20 +2,33 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\DailyTask;
+use App\Services\ImageModerationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class ImageController extends Controller
 {
+    public function __construct(private ImageModerationService $moderation) {}
+
     public function uploadAvatar(Request $request)
     {
         $request->validate([
-            'image' => 'required|image|max:5120',
+            'image' => 'required|image',
         ]);
 
-        $user = $request->user();
         $file = $request->file('image');
+
+        try {
+            if (! $this->moderation->isSafe($file)) {
+                return response()->json(['error' => 'The image contains inappropriate content.'], 422);
+            }
+        } catch (\RuntimeException $e) {
+            return response()->json(['error' => $e->getMessage()], $e->getCode() ?: 500);
+        }
+
+        $user = $request->user();
         $extension = $file->getClientOriginalExtension();
         $path = "{$user->id}/avatar.{$extension}";
 
@@ -37,16 +50,26 @@ class ImageController extends Controller
         }
     }
 
-    public function uploadFeedImage(Request $request)
+    public function uploadTaskImage(Request $request)
     {
         $request->validate([
-            'image' => 'required|image|max:10240',
+            'image' => 'required|image',
+            'daily_task_id' => 'required|integer|exists:daily_tasks,id',
         ]);
 
-        $user = $request->user();
         $file = $request->file('image');
+
+        try {
+            if (! $this->moderation->isSafe($file)) {
+                return response()->json(['error' => 'The image contains inappropriate content.'], 422);
+            }
+        } catch (\RuntimeException $e) {
+            return response()->json(['error' => $e->getMessage()], $e->getCode() ?: 500);
+        }
+
+        $user = $request->user();
         $extension = $file->getClientOriginalExtension();
-        $timestamp = (int) (microtime(true) * 1000); // milliseconds like Date.now()
+        $timestamp = (int) (microtime(true) * 1000);
         $randomString = Str::random(8);
         $path = "{$user->id}/{$timestamp}_{$randomString}.{$extension}";
 
@@ -59,10 +82,11 @@ class ImageController extends Controller
 
             $publicUrl = rtrim(env('SUPABASE_URL'), '/').'/storage/v1/object/public/feed-images/'.$path;
 
-            return response()->json([
-                'publicUrl' => $publicUrl,
-                'path' => $path,
-            ]);
+            DailyTask::where('id', $request->integer('daily_task_id'))
+                ->where('user_id', $user->id)
+                ->update(['photo_url' => $publicUrl, 'status' => 'completed']);
+
+            return response()->json(['publicUrl' => $publicUrl]);
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
         }

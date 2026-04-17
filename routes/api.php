@@ -34,5 +34,5 @@ Route::post('/v1/timetable/extract', [TimetableController::class, 'extract']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/users/avatar', [ImageController::class, 'uploadAvatar']);
-    Route::post('/feed/image', [ImageController::class, 'uploadFeedImage']);
+    Route::post('/feed/image', [ImageController::class, 'uploadTaskImage']);
 });
