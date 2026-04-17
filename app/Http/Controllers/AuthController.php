@@ -32,7 +32,9 @@ class AuthController extends Controller
             'social'          => $validated['social'] ?? null,
         ]);
 
-        if (!empty($validated['schedule'])) {
+        $scheduleData = $validated['schedule']['data'] ?? $validated['schedule'] ?? [];
+
+        if (!empty($scheduleData)) {
             $scheduleItems = array_map(fn($item) => [
                 'user_id'      => $user->id,
                 'day_of_week'  => $item['day_of_week'],
@@ -41,7 +43,7 @@ class AuthController extends Controller
                 'end_time'     => $item['end_time'],
                 'created_at'   => now(),
                 'updated_at'   => now(),
-            ], $validated['schedule']);
+            ], $scheduleData);
 
             ScheduleItem::insert($scheduleItems);
         }
@@ -49,8 +51,8 @@ class AuthController extends Controller
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
-            'user'    => $user,
-            'token'   => $token,
+            'user'  => $user,
+            'token' => $token,
         ], 201);
     }
 
