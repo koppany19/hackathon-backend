@@ -3,6 +3,7 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ImageController;
 use App\Http\Controllers\ImageModerationController;
+use App\Http\Controllers\LeaderboardController;
 use App\Http\Controllers\OAuthController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\TimetableController;
@@ -38,6 +39,7 @@ Route::post('/v1/timetable/extract', [TimetableController::class, 'extract']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/users/avatar', [ImageController::class, 'uploadAvatar']);
     Route::post('/feed/image', [ImageController::class, 'uploadTaskImage']);
+    Route::get('/leaderboard', [LeaderboardController::class, 'index']);
 });
 
 
