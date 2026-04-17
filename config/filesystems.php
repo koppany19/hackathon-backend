@@ -60,6 +60,30 @@ return [
             'report' => false,
         ],
 
+        'supabase-profiles' => [
+            'driver' => 's3',
+            'key' => env('SUPABASE_S3_KEY'),
+            'secret' => env('SUPABASE_S3_SECRET'),
+            'region' => env('SUPABASE_S3_REGION', 'us-east-1'),
+            'bucket' => 'profile-images',
+            'endpoint' => rtrim(env('SUPABASE_URL', ''), '/').'/storage/v1/s3',
+            'use_path_style_endpoint' => true,
+            'throw' => true,
+            'report' => false,
+        ],
+
+        'supabase-feed' => [
+            'driver' => 's3',
+            'key' => env('SUPABASE_S3_KEY'),
+            'secret' => env('SUPABASE_S3_SECRET'),
+            'region' => env('SUPABASE_S3_REGION', 'us-east-1'),
+            'bucket' => 'feed-images',
+            'endpoint' => rtrim(env('SUPABASE_URL', ''), '/').'/storage/v1/s3',
+            'use_path_style_endpoint' => true,
+            'throw' => true,
+            'report' => false,
+        ],
+
     ],
 
     /*
