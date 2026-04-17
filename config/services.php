@@ -13,6 +13,11 @@ return [
     | a conventional file to locate the various service credentials.
     |
     */
+    'nsfw' => [
+        'key' => env('NSFW_API_KEY'),
+        'url' => env('NSFW_API_URL', 'https://nsfw-categorize.it/api/upload'),
+    ],
+
     'google' => [
         'client_id' => env('GOOGLE_CLIENT_ID'),
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),
