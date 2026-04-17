@@ -16,6 +16,7 @@ class Task extends Model
         'is_active',
         'time',
         'location',
+        'difficulty',
     ];
 
     protected $casts = [
