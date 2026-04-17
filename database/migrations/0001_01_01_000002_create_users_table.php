@@ -22,6 +22,8 @@ return new class extends Migration
             $table->foreignId('university_id')->nullable()->constrained()->nullOnDelete();
             $table->foreignId('city_id')->nullable()->constrained()->nullOnDelete();
             $table->integer('xp')->default(0);
+            $table->integer('level')->default(1);
+            $table->integer('streak')->default(1);
             $table->rememberToken();
             $table->timestamps();
         });

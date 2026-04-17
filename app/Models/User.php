@@ -48,7 +48,9 @@ class User extends Authenticatable
         'university_id',
         'city_id',
         'xp',
-        'profile_image'
+        'profile_image',
+        'level',
+        'streak'
     ];
 
     public function university(): BelongsTo
@@ -79,5 +81,16 @@ class User extends Authenticatable
     public function scheduleItems(): HasMany
     {
         return $this->hasMany(ScheduleItem::class);
+    }
+
+    public function level(): BelongsTo
+    {
+        return $this->belongsTo(Level::class, 'level', 'level');
+    }
+
+    public function nextLevel(): HasOne
+    {
+        return $this->hasOne(Level::class, 'level', 'level')
+            ->where('level', $this->level + 1);
     }
 }

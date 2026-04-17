@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Level;
 use Illuminate\Support\Facades\Log;
 use App\Http\Requests\OnboardingRequest;
 use App\Http\Requests\RegisterRequest;
@@ -74,15 +75,23 @@ class AuthController extends Controller
             'university',
             'city',
             'scheduleItems',
-        ])
-            ->where('email', $validated['email'])
-            ->first();
+        ])->where('email', $validated['email'])->first();
 
         $token = $user->createToken('auth_token')->plainTextToken;
+
+        $currentLevel = Level::where('level', $user->level)->first();
+        $nextLevel    = Level::where('level', $user->level + 1)->first();
 
         return response()->json([
             'user'  => $user,
             'token' => $token,
+            'level' => [
+                'current'      => $user->level,
+                'current_xp'   => $user->xp,
+                'needed_xp'    => $currentLevel?->needed_xp,
+                'next_level_xp'=> $nextLevel?->needed_xp,
+                'xp_to_next'   => $nextLevel ? $nextLevel->needed_xp - $user->xp : null,
+            ],
         ], 200);
     }
 
