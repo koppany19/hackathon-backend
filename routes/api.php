@@ -22,6 +22,7 @@ Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanc
 Route::post('/google', [OAuthController::class, 'googleMobile']);
 //onboarding
 Route::post('/onboarding', [AuthController::class, 'onboarding'])->middleware('auth:sanctum');
+Route::get('/me', [AuthController::class, 'me'])->middleware('auth:sanctum');
 
 
 //search
@@ -38,6 +39,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/users/avatar', [ImageController::class, 'uploadAvatar']);
     Route::post('/feed/image', [ImageController::class, 'uploadTaskImage']);
 });
+
+
 
 
 

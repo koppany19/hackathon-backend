@@ -160,4 +160,28 @@ class AuthController extends Controller
             return response()->json(['message' => $e->getMessage()], 500);
         }
     }
+
+    public function me(Request $request)
+    {
+        $user = User::with([
+            'profile',
+            'university',
+            'city',
+            'scheduleItems',
+        ])->find($request->user()->id);
+
+        $currentLevel = Level::where('level', $user->level)->first();
+        $nextLevel    = Level::where('level', $user->level + 1)->first();
+
+        return response()->json([
+            'user'  => $user,
+            'level' => [
+                'current'       => $user->level,
+                'current_xp'    => $user->xp,
+                'needed_xp'     => $currentLevel?->needed_xp,
+                'next_level_xp' => $nextLevel?->needed_xp,
+                'xp_to_next'    => $nextLevel ? $nextLevel->needed_xp - $user->xp : null,
+            ],
+        ], 200);
+    }
 }
