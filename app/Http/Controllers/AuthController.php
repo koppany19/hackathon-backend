@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Support\Facades\Log;
 use App\Http\Requests\OnboardingRequest;
 use App\Http\Requests\RegisterRequest;
 use App\Models\ScheduleItem;
