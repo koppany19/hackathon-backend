@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\RegisterRequest;
 use App\Models\ScheduleItem;
 use App\Models\User;
 use App\Models\UserProfile;
@@ -11,29 +12,9 @@ use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
-    public function register(Request $request)
+    public function register(RegisterRequest $request)
     {
-        $validated = $request->validate([
-            'name'                              => 'required|string|max:255',
-            'email'                             => 'required|email|string|max:255|unique:users',
-            'password'                          => 'required|string|min:8',
-            'university_id'                     => 'nullable|exists:universities,id',
-            'city_id'                           => 'nullable|exists:cities,id',
-
-            // user_profile
-            'sport_frequency'                   => 'nullable|in:never,rarely,sometimes,often,daily',
-            'diet_type'                         => 'nullable|in:omnivore,vegetarian,vegan,other',
-            'food_habits'                       => 'nullable|array',
-            'mental_health_score'               => 'nullable|integer|min:1|max:10',
-            'sleep_hours'                       => 'nullable|numeric|min:0|max:24',
-
-            // schedule_items
-            'schedule'                          => 'nullable|array',
-            'schedule.*.day_of_week'            => 'required|in:monday,tuesday,wednesday,thursday,friday,saturday,sunday',
-            'schedule.*.subject_name'           => 'required|string|max:255',
-            'schedule.*.start_time'             => 'required|date_format:H:i',
-            'schedule.*.end_time'               => 'required|date_format:H:i|after:schedule.*.start_time',
-        ]);
+        $validated = $request->validated();
 
         $user = User::create([
             'name'          => $validated['name'],
@@ -44,12 +25,11 @@ class AuthController extends Controller
         ]);
 
         UserProfile::create([
-            'user_id'              => $user->id,
-            'sport_frequency'      => $validated['sport_frequency'] ?? null,
-            'diet_type'            => $validated['diet_type'] ?? null,
-            'food_habits'          => $validated['food_habits'] ?? null,
-            'mental_health_score'  => $validated['mental_health_score'] ?? null,
-            'sleep_hours'          => $validated['sleep_hours'] ?? null,
+            'user_id'         => $user->id,
+            'sport_frequency' => $validated['sport_frequency'] ?? null,
+            'food'            => $validated['food'] ?? null,
+            'sports'          => $validated['sports'] ?? null,
+            'social'          => $validated['social'] ?? null,
         ]);
 
         if (!empty($validated['schedule'])) {
@@ -77,7 +57,7 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         $validated = $request->validate([
-            'email' => 'required|string|email',
+            'email'    => 'required|string|email',
             'password' => 'required|string',
         ]);
 
@@ -85,11 +65,19 @@ class AuthController extends Controller
             return response()->json(['message' => 'Hibás email vagy jelszó.'], 422);
         }
 
-        $user = User::where('email', $validated['email'])->first();
+        $user = User::with([
+            'profile',
+            'university',
+            'city',
+            'scheduleItems',
+        ])
+            ->where('email', $validated['email'])
+            ->first();
+
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
-            'user' => $user,
+            'user'  => $user,
             'token' => $token,
         ], 200);
     }
