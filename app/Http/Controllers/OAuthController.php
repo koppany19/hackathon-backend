@@ -4,8 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Laravel\Socialite\Facades\Socialite;
 
 class OAuthController extends Controller
 {
@@ -14,15 +14,21 @@ class OAuthController extends Controller
         $request->validate(['access_token' => 'required|string']);
 
         try {
-            $googleUser = Socialite::driver('google')
-                ->stateless()
-                ->userFromToken($request->access_token);
+            $response = Http::get('https://oauth2.googleapis.com/tokeninfo', [
+                'access_token' => $request->access_token,
+            ]);
+
+            if ($response->failed()) {
+                return response()->json(['message' => 'Invalid Google token.'], 401);
+            }
+
+            $googleUser = $response->json();
 
             $user = User::updateOrCreate(
-                ['email' => $googleUser->email],
+                ['email' => $googleUser['email']],
                 [
-                    'name' => $googleUser->name,
-                    'google_id' => $googleUser->id,
+                    'name' => $googleUser['name'] ?? $googleUser['email'],
+                    'google_id' => $googleUser['sub'],
                     'email_verified_at' => now(),
                     'password' => null,
                 ]
@@ -37,7 +43,7 @@ class OAuthController extends Controller
 
         } catch (\Exception $e) {
             Log::error('Google OAuth failed', ['error' => $e->getMessage()]);
-            return response()->json(['message' => $e->getMessage()], 401);
+            return response()->json(['message' => 'Authentication failed.'], 401);
         }
     }
 }
