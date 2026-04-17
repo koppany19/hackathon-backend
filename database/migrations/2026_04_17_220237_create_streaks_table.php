@@ -13,9 +13,8 @@ return new class extends Migration
     {
         Schema::create('streaks', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->integer('streak_count')->default(0);
-            $table->boolean('boost')->default(false);
+            $table->integer('boost');
             $table->timestamps();
         });
     }

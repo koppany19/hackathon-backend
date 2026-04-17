@@ -98,4 +98,10 @@ class User extends Authenticatable
     {
         return $this->hasOne(Streak::class);
     }
+
+    public function getCurrentBoost(): int
+    {
+        $streak = Streak::where('streak_count', $this->streak)->first();
+        return $streak?->boost ?? 0;
+    }
 }
