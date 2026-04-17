@@ -2,54 +2,26 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\ImageModerationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
 
 class ImageModerationController extends Controller
 {
+    public function __construct(private ImageModerationService $moderation) {}
+
     public function analyze(Request $request): JsonResponse
     {
         $request->validate([
             'image' => ['required', 'file', 'mimes:jpeg,jpg,png'],
         ]);
 
-        $file = $request->file('image');
-        $apiKey = config('services.nsfw.key');
-        $apiUrl = config('services.nsfw.url');
-
         try {
-            $http = Http::attach('image', fopen($file->getRealPath(), 'r'), $file->getClientOriginalName());
-
-            if ($apiKey) {
-                $http = $http->withHeaders(['NSFWKEY' => $apiKey]);
-            }
-
-            $response = $http->post($apiUrl);
-        } catch (\Exception $e) {
-            return response()->json(['message' => 'External moderation service is unreachable.'], 503);
+            $result = $this->moderation->analyze($request->file('image'));
+        } catch (\RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], $e->getCode() ?: 500);
         }
 
-        if (! $response->successful()) {
-            return response()->json(['message' => 'External moderation service returned an error.'], 502);
-        }
-
-        $data = $response->json();
-
-        if (($data['status'] ?? null) === 'NOQUOTA') {
-            return response()->json(['message' => 'NSFW API quota depleted.'], 503);
-        }
-
-        if (($data['status'] ?? null) !== 'OK') {
-            return response()->json(['message' => 'Unexpected response from moderation service.'], 502);
-        }
-
-        $result = $data['data'] ?? [];
-
-        return response()->json([
-            'is_safe'    => ! (bool) ($result['nsfw'] ?? true),
-            'confidence' => (float) ($result['confidence'] ?? 0.0),
-            'label'      => (string) ($result['classification'] ?? ''),
-        ]);
+        return response()->json($result);
     }
 }

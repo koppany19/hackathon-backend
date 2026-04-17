@@ -2,14 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\ImageModerationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class TimetableController extends Controller
 {
+    public function __construct(private ImageModerationService $moderation) {}
     private const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 
     private const SYSTEM_PROMPT = <<<'PROMPT'
@@ -32,7 +33,15 @@ PROMPT;
 
         $file = $request->file('image');
 
-        if (! $this->isImageSafe($file)) {
+        try {
+            $isSafe = $this->moderation->isSafe($file);
+        } catch (\RuntimeException $e) {
+            Log::error('NSFW moderation failed', ['error' => $e->getMessage()]);
+
+            return response()->json(['message' => $e->getMessage()], $e->getCode() ?: 503);
+        }
+
+        if (! $isSafe) {
             return response()->json([
                 'message' => 'The uploaded image contains inappropriate content and cannot be processed.',
             ], 422);
@@ -92,32 +101,6 @@ PROMPT;
         }
 
         return response()->json(['data' => $timetable]);
-    }
-
-    private function isImageSafe(UploadedFile $file): bool
-    {
-        try {
-            $response = Http::timeout(10)
-                ->attach('image', file_get_contents($file->getRealPath()), $file->getClientOriginalName())
-                ->post('https://nsfw-categorize.it/api/upload');
-        } catch (\Exception $e) {
-            Log::error('NSFW API unreachable', ['error' => $e->getMessage()]);
-
-            return false;
-        }
-
-        if (! $response->successful()) {
-            Log::error('NSFW API returned an error', [
-                'status' => $response->status(),
-                'body'   => $response->body(),
-            ]);
-
-            return false;
-        }
-
-        $json = $response->json();
-
-        return ($json['status'] ?? '') === 'OK' && ($json['nsfw'] ?? true) === false;
     }
 
     private function parseJson(string $raw): ?array
