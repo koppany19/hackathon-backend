@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
             CitySeeder::class,
             UniversitySeeder::class,
             LevelSeeder::class,
+            StreakSeeder::class,
         ]);
     }
 }

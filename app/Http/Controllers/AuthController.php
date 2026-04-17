@@ -168,7 +168,7 @@ class AuthController extends Controller
             'university',
             'city',
             'scheduleItems',
-            'streak'
+            'streak',
         ])->find($request->user()->id);
 
         $currentLevel = Level::where('level', $user->level)->first();
@@ -176,7 +176,7 @@ class AuthController extends Controller
 
         return response()->json([
             'user' => array_merge($user->toArray(), [
-                'level' => [
+                'level_info' => [
                     'current'       => $user->level,
                     'current_xp'    => $user->xp,
                     'needed_xp'     => $currentLevel?->needed_xp,
