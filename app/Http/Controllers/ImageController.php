@@ -34,7 +34,9 @@ class ImageController extends Controller
 
         try {
             // Delete first to achieve upsert:true semantics on Supabase S3
-            Storage::disk('supabase-profiles')->delete($path);
+            if (Storage::disk('supabase-profiles')->exists($path)) {
+                Storage::disk('supabase-profiles')->delete($path);
+            }
 
             $uploaded = Storage::disk('supabase-profiles')->put($path, file_get_contents($file->getRealPath()), 'public');
 
