@@ -38,15 +38,68 @@ Content-Type: application/json
 
 {
   "name": "Teszt Elek",
-  "email": "teszt2@teszt.com",
+  "email": "teszt3@teszt.com",
   "password": "password123",
   "university_id": 1,
   "city_id": 1,
-  "sport_frequency": "sometimes",
-  "diet_type": "omnivore",
-  "food_habits": ["fast_food", "homemade"],
-  "mental_health_score": 7,
-  "sleep_hours": 7.5,
+  "sport_frequency": "2_3_week",
+  "food": {
+    "lactose_intolerant": false,
+    "gluten_intolerant": true,
+    "vegan": true,
+    "vegetarian": false,
+    "nut_allergy": true,
+    "halal": false,
+    "kosher": false,
+    "dairy_free": false,
+    "loves_spicy": false,
+    "meal_prep": true,
+    "street_food": true,
+    "fine_dining": false,
+    "fast_food": true,
+    "home_cooking": true
+  },
+  "sports": {
+    "sport_daily": false,
+    "sport_4_5_week": false,
+    "sport_2_3_week": true,
+    "sport_once_week": false,
+    "sport_rarely": false,
+    "football": false,
+    "basketball": true,
+    "running": false,
+    "cycling": false,
+    "swimming": true,
+    "tennis": true,
+    "gym": false,
+    "yoga": true,
+    "hiking": true,
+    "martial_arts": true,
+    "volleyball": false,
+    "badminton": false
+  },
+  "social": {
+    "reading": false,
+    "movies_series": false,
+    "gaming": true,
+    "music": false,
+    "art_drawing": true,
+    "photography": true,
+    "cooking": true,
+    "travel": false,
+    "concerts": false,
+    "theater": false,
+    "dancing": false,
+    "board_games": false,
+    "volunteering": false,
+    "coffee_culture": false,
+    "prefers_indoor": true,
+    "prefers_outdoor": false,
+    "large_groups": false,
+    "small_gatherings": false,
+    "night_owl": false,
+    "early_bird": false
+  },
   "schedule": [
     {
       "day_of_week": "monday",
@@ -61,4 +114,13 @@ Content-Type: application/json
       "end_time": "16:00"
     }
   ]
+}
+
+### Login
+POST http://localhost/api/login
+Content-Type: application/json
+
+{
+  "email": "teszt3@teszt.com",
+  "password": "password123"
 }

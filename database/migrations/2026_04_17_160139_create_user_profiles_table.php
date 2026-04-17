@@ -14,11 +14,10 @@ return new class extends Migration
         Schema::create('user_profiles', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
-            $table->enum('sport_frequency', ['never', 'rarely', 'sometimes', 'often', 'daily']);
-            $table->enum('diet_type', ['omnivore', 'vegetarian', 'vegan', 'other']);
-            $table->json('food_habits')->nullable();
-            $table->unsignedTinyInteger('mental_health_score');
-            $table->float('sleep_hours');
+            $table->string('sport_frequency')->nullable()->after('user_id')->nullable();
+            $table->json('food')->nullable()->after('sport_frequency');
+            $table->json('sports')->nullable()->after('food');
+            $table->json('social')->nullable()->after('sports');
             $table->timestamps();
         });
     }

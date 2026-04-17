@@ -9,14 +9,15 @@ class UserProfile extends Model
     protected $fillable = [
         'user_id',
         'sport_frequency',
-        'diet_type',
-        'food_habits',
-        'mental_health_score',
-        'sleep_hours',
+        'food',
+        'sports',
+        'social',
     ];
 
     protected $casts = [
-        'food_habits' => 'array',
+        'food'   => 'array',
+        'sports' => 'array',
+        'social' => 'array',
     ];
 
     public function user(): BelongsTo
