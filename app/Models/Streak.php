@@ -14,7 +14,7 @@ class Streak extends Model
     ];
 
     protected $casts = [
-        'boost' => 'boolean',
+        'boost' => 'integer',
     ];
 
     public function user(): BelongsTo

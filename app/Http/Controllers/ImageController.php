@@ -86,9 +86,21 @@ class ImageController extends Controller
 
             $publicUrl = rtrim(env('SUPABASE_URL'), '/').'/storage/v1/object/public/feed-images/'.$path;
 
-            DailyTask::where('id', $request->integer('daily_task_id'))
+            $dailyTask = DailyTask::with('task')
+                ->where('id', $request->integer('daily_task_id'))
                 ->where('user_id', $user->id)
-                ->update(['photo_url' => $publicUrl, 'status' => 'completed']);
+                ->first();
+
+            if ($dailyTask) {
+                $dailyTask->update(['photo_url' => $publicUrl, 'status' => 'completed']);
+
+                $baseXp = $dailyTask->task?->xp_value ?? 0;
+                $streak = $user->streak;
+                $boostPercent = $streak?->boost ?? 0;
+                $earnedXp = (int) round($baseXp * (1 + $boostPercent / 100));
+
+                $user->increment('xp', $earnedXp);
+            }
 
             return response()->json(['publicUrl' => $publicUrl]);
         } catch (\Exception $e) {
