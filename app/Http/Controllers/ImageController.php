@@ -48,6 +48,8 @@ class ImageController extends Controller
 
             $publicUrl = rtrim(env('SUPABASE_URL'), '/').'/storage/v1/object/public/profile-images/'.$path;
 
+            $user->update(['profile_image' => $publicUrl]);
+
             return response()->json(['publicUrl' => $publicUrl]);
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
