@@ -14,6 +14,7 @@ class AuthController extends Controller
 {
     public function register(RegisterRequest $request)
     {
+        \Log::info('Schedule data:', ['schedule' => $request->input('schedule')]);
         $validated = $request->validated();
 
         $user = User::create([

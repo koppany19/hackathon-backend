@@ -88,11 +88,12 @@ class RegisterRequest extends FormRequest
             'social.night_owl'            => 'boolean',
             'social.early_bird'           => 'boolean',
 
-            'schedule'                    => 'nullable|array',
-            'schedule.*.day_of_week'      => 'required|in:monday,tuesday,wednesday,thursday,friday,saturday,sunday',
-            'schedule.*.subject_name'     => 'required|string|max:255',
-            'schedule.*.start_time'       => 'required|date_format:H:i',
-            'schedule.*.end_time'         => 'required|date_format:H:i|after:schedule.*.start_time',
+            'schedule'                       => 'nullable|array',
+            'schedule.data'                  => 'nullable|array',
+            'schedule.data.*.day_of_week'    => 'nullable|in:monday,tuesday,wednesday,thursday,friday,saturday,sunday',
+            'schedule.data.*.subject_name'   => 'nullable|string|max:255',
+            'schedule.data.*.start_time'     => 'nullable|date_format:H:i',
+            'schedule.data.*.end_time'       => 'nullable|date_format:H:i',
         ];
     }
 }
