@@ -75,6 +75,7 @@ class AuthController extends Controller
             'university',
             'city',
             'scheduleItems',
+            'streakLevel',
         ])->where('email', $validated['email'])->first();
 
         $token = $user->createToken('auth_token')->plainTextToken;
@@ -168,7 +169,7 @@ class AuthController extends Controller
             'university',
             'city',
             'scheduleItems',
-            'streak',
+            'streakLevel',
         ])->find($request->user()->id);
 
         $currentLevel = Level::where('level', $user->level)->first();

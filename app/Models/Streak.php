@@ -3,12 +3,10 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Streak extends Model
 {
     protected $fillable = [
-        'user_id',
         'streak_count',
         'boost',
     ];
@@ -16,9 +14,4 @@ class Streak extends Model
     protected $casts = [
         'boost' => 'integer',
     ];
-
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(User::class);
-    }
 }

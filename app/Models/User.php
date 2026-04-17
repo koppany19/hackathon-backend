@@ -94,14 +94,13 @@ class User extends Authenticatable
             ->where('level', $this->level + 1);
     }
 
-    public function streak(): HasOne
+    public function streakLevel(): BelongsTo
     {
-        return $this->hasOne(Streak::class);
+        return $this->belongsTo(Streak::class, 'streak', 'streak_count');
     }
 
     public function getCurrentBoost(): int
     {
-        $streak = Streak::where('streak_count', $this->streak)->first();
-        return $streak?->boost ?? 0;
+        return $this->streakLevel?->boost ?? 0;
     }
 }
