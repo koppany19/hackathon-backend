@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Log;
 
 class TimetableController extends Controller
 {
-    private const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+    private const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
     private const SYSTEM_PROMPT = <<<'PROMPT'
 You are a timetable OCR assistant. Extract all schedule entries from the image and return ONLY a minified JSON array with no explanation, no markdown, and no backticks.
