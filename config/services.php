@@ -13,6 +13,17 @@ return [
     | a conventional file to locate the various service credentials.
     |
     */
+    'nsfw' => [
+        'key' => env('NSFW_API_KEY'),
+        'url' => env('NSFW_API_URL', 'https://nsfw-categorize.it/api/upload'),
+    ],
+
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect' => env('GOOGLE_REDIRECT_URI', 'https://sittesek-4yxnp.ondigitalocean.app'),
+    ],
+
 
     'postmark' => [
         'key' => env('POSTMARK_API_KEY'),
