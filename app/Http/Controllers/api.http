@@ -24,3 +24,9 @@ Content-Type: application/json
 POST http://localhost/api/logout
 Content-Type: application/json
 Authorization: Bearer 10|Fj0Juxjb13eQwJZLuUSihTAogNleNypGqpDb6aFU99405e57
+
+### City search
+GET http://localhost/api/search/cities?q=kol
+
+### University search
+GET http://localhost/api/search/universities?q=sap
