@@ -96,47 +96,58 @@ class AuthController extends Controller
 
     public function onboarding(OnboardingRequest $request)
     {
-        Log::info('Onboarding request data:', $request->all());
+        Log::info('Onboarding raw data:', $request->all());
 
-        $user      = $request->user();
-        $validated = $request->validated();
+        try {
+            $user      = $request->user();
+            $validated = $request->validated();
 
-        Log::info('Validated data:', $validated);
-        Log::info('User:', ['id' => $user->id, 'email' => $user->email]);
+            Log::info('User:', ['id' => $user?->id]);
+            Log::info('Validated:', $validated);
 
-        $user->update([
-            'university_id' => $validated['university'] ?? null,
-            'city_id'       => $validated['city'] ?? null,
-        ]);
+            $user->update([
+                'university_id' => $validated['university'] ?? null,
+                'city_id'       => $validated['city'] ?? null,
+            ]);
 
-        $user->profile()->updateOrCreate(
-            ['user_id' => $user->id],
-            [
-                'sport_frequency' => $validated['sport_frequency'] ?? null,
-                'food'            => $validated['food'] ?? null,
-                'sports'          => $validated['sports'] ?? null,
-                'social'          => $validated['social'] ?? null,
-            ]
-        );
+            $user->profile()->updateOrCreate(
+                ['user_id' => $user->id],
+                [
+                    'sport_frequency' => $validated['sport_frequency'] ?? null,
+                    'food'            => $validated['food'] ?? null,
+                    'sports'          => $validated['sports'] ?? null,
+                    'social'          => $validated['social'] ?? null,
+                ]
+            );
 
-        $scheduleData = $validated['schedule']['data'] ?? $validated['schedule'] ?? [];
+            $scheduleData = $validated['schedule']['data'] ?? $validated['schedule'] ?? [];
 
-        if (!empty($scheduleData)) {
-            $user->scheduleItems()->delete();
+            if (!empty($scheduleData)) {
+                $user->scheduleItems()->delete();
 
-            ScheduleItem::insert(array_map(fn($item) => [
-                'user_id'      => $user->id,
-                'day_of_week'  => $item['day_of_week'],
-                'subject_name' => $item['subject_name'],
-                'start_time'   => $item['start_time'],
-                'end_time'     => $item['end_time'],
-                'created_at'   => now(),
-                'updated_at'   => now(),
-            ], $scheduleData));
+                ScheduleItem::insert(array_map(fn($item) => [
+                    'user_id'      => $user->id,
+                    'day_of_week'  => $item['day_of_week'],
+                    'subject_name' => $item['subject_name'],
+                    'start_time'   => $item['start_time'],
+                    'end_time'     => $item['end_time'],
+                    'created_at'   => now(),
+                    'updated_at'   => now(),
+                ], $scheduleData));
+            }
+
+            $user->load(['profile', 'university', 'city', 'scheduleItems']);
+
+            return response()->json(['user' => $user], 200);
+
+        } catch (\Exception $e) {
+            Log::error('Onboarding error:', [
+                'message' => $e->getMessage(),
+                'line'    => $e->getLine(),
+                'file'    => $e->getFile(),
+            ]);
+
+            return response()->json(['message' => $e->getMessage()], 500);
         }
-
-        $user->load(['profile', 'university', 'city', 'scheduleItems']);
-
-        return response()->json(['user' => $user], 200);
     }
 }
