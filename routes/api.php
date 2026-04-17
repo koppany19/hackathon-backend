@@ -5,6 +5,7 @@ use App\Http\Controllers\ImageController;
 use App\Http\Controllers\ImageModerationController;
 use App\Http\Controllers\OAuthController;
 use App\Http\Controllers\SearchController;
+use App\Http\Controllers\TimetableController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/test', function () {
@@ -27,6 +28,9 @@ Route::get('/search/universities', [SearchController::class, 'universities']);
 
 //moderation
 Route::post('/moderate/image', [ImageModerationController::class, 'analyze']);
+
+//timetable
+Route::post('/v1/timetable/extract', [TimetableController::class, 'extract']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/users/avatar', [ImageController::class, 'uploadAvatar']);
