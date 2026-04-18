@@ -89,13 +89,13 @@ class DailyTaskController extends Controller
         $today     = strtolower(Carbon::today()->format('l'));
         $todayDate = Carbon::today();
 
-        $user->load('scheduleItems');
+        $user->load(['scheduleItems', 'profile']);
 
         $joinedTaskIds = DailyTask::where('user_id', $user->id)
             ->whereDate('date', $todayDate)
             ->pluck('task_id');
 
-        // User-created group tasks: same university + overlapping free time with creator
+        // User-created group tasks: same university + overlapping free time with creator + matching category
         $userCreatedTasks = collect();
 
         if ($user->university_id) {
@@ -108,7 +108,9 @@ class DailyTaskController extends Controller
                 ->get()
                 ->filter(function ($task) use ($user, $today) {
                     if (!$task->creator) return false;
-                    return $this->groupMatchingService->hasScheduleOverlap($user, $task->creator, $today);
+                    if (!$this->groupMatchingService->hasScheduleOverlap($user, $task->creator, $today)) return false;
+                    if (!$this->groupMatchingService->taskTimeInUserFreeWindow($user, $today, $task->time)) return false;
+                    return $this->userMatchesTaskCategory($user, $task);
                 })
                 ->values();
         }
@@ -120,9 +122,31 @@ class DailyTaskController extends Controller
             ->whereDate('created_at', $todayDate)
             ->whereNotIn('id', $joinedTaskIds)
             ->with(['subcategory', 'creator'])
-            ->get();
+            ->get()
+            ->filter(function ($task) use ($user, $today) {
+                if (!$this->groupMatchingService->taskTimeInUserFreeWindow($user, $today, $task->time)) return false;
+                return $this->userMatchesTaskCategory($user, $task);
+            })
+            ->values();
 
         return response()->json($userCreatedTasks->merge($aiGroupTasks)->values());
+    }
+
+    private function userMatchesTaskCategory(User $user, Task $task): bool
+    {
+        $profileKey = match($task->category) {
+            'sport'         => 'sports',
+            'meal'          => 'food',
+            'mental_health' => 'social',
+            default         => null,
+        };
+
+        if (!$profileKey || !$user->profile) {
+            return true;
+        }
+
+        $interests = $user->profile->{$profileKey} ?? [];
+        return !empty(array_filter((array) $interests));
     }
 
     public function join(Request $request, Task $task): JsonResponse
