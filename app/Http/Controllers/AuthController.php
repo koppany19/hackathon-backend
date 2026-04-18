@@ -119,8 +119,8 @@ class AuthController extends Controller
                     'name'              => $validated['name'],
                     'email_verified_at' => now(),
                     'password'          => null,
-                    'university_id'     => $validated['university'] ?? null,
-                    'city_id'           => $validated['city'] ?? null,
+                    'university_id'     => $validated['university_id'] ?? null,
+                    'city_id'           => $validated['city_id'] ?? null,
                 ]
             );
 
