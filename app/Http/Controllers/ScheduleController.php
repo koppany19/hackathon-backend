@@ -15,6 +15,11 @@ class ScheduleController extends Controller
         private GeminiTimetableService $gemini,
     ) {}
 
+    public function index(Request $request): JsonResponse
+    {
+        return response()->json($request->user()->scheduleItems()->get());
+    }
+
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
