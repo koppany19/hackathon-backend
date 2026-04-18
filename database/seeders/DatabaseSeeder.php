@@ -16,14 +16,12 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
+            SubcategorySeeder::class,
             CitySeeder::class,
             UniversitySeeder::class,
-            LevelSeeder::class,
             StreakSeeder::class,
-            SubcategorySeeder::class,
-            DailyTaskSeeder::class,
-            TaskSeeder::class,
-            UserSeeder::class,
+            LevelSeeder::class,
+            BulkUserSeeder::class,
         ]);
     }
 }

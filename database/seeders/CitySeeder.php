@@ -23,11 +23,10 @@ class CitySeeder extends Seeder
         ];
 
         foreach ($cities as $city) {
-            DB::table('cities')->insert([
-                'name'       => $city,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+            DB::table('cities')->updateOrInsert(
+                ['name' => $city],
+                ['created_at' => now(), 'updated_at' => now()]
+            );
         }
     }
 }
