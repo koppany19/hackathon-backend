@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\DailyTask;
+use App\Services\GeminiMealHealthService;
 use App\Services\ImageModerationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -10,7 +11,10 @@ use Illuminate\Support\Str;
 
 class ImageController extends Controller
 {
-    public function __construct(private ImageModerationService $moderation) {}
+    public function __construct(
+        private ImageModerationService $moderation,
+        private GeminiMealHealthService $mealHealth,
+    ) {}
 
     public function uploadAvatar(Request $request)
     {
@@ -64,6 +68,7 @@ class ImageController extends Controller
         ]);
 
         $file = $request->file('image');
+        $user = $request->user();
 
         try {
             if (! $this->moderation->isSafe($file)) {
@@ -73,7 +78,30 @@ class ImageController extends Controller
             return response()->json(['error' => $e->getMessage()], $e->getCode() ?: 500);
         }
 
-        $user = $request->user();
+        $dailyTask = DailyTask::with('task.subcategory')
+            ->where('id', $request->integer('daily_task_id'))
+            ->where('user_id', $user->id)
+            ->first();
+
+        if (! $dailyTask) {
+            return response()->json(['error' => 'Daily task not found.'], 404);
+        }
+
+        if ($dailyTask->task?->category === 'meal') {
+            try {
+                $healthScore = $this->mealHealth->getHealthScore($file);
+            } catch (\RuntimeException $e) {
+                return response()->json(['error' => $e->getMessage()], $e->getCode() ?: 500);
+            }
+
+            if ($healthScore < 70) {
+                return response()->json([
+                    'error'        => 'The meal does not appear healthy enough to complete this task.',
+                    'health_score' => $healthScore,
+                ], 422);
+            }
+        }
+
         $extension = $file->getClientOriginalExtension();
         $timestamp = (int) (microtime(true) * 1000);
         $randomString = Str::random(8);
@@ -88,21 +116,14 @@ class ImageController extends Controller
 
             $publicUrl = rtrim(env('SUPABASE_URL'), '/').'/storage/v1/object/public/feed-images/'.$path;
 
-            $dailyTask = DailyTask::with('task.subcategory')
-                ->where('id', $request->integer('daily_task_id'))
-                ->where('user_id', $user->id)
-                ->first();
+            $dailyTask->update(['photo_url' => $publicUrl, 'status' => 'completed']);
 
-            if ($dailyTask) {
-                $dailyTask->update(['photo_url' => $publicUrl, 'status' => 'completed']);
+            $baseXp = $dailyTask->task?->subcategory?->xp_value ?? 0;
+            $streak = $user->streak;
+            $boostPercent = $streak?->boost ?? 0;
+            $earnedXp = (int) round($baseXp * (1 + $boostPercent / 100));
 
-                $baseXp = $dailyTask->task?->subcategory?->xp_value ?? 0;
-                $streak = $user->streak;
-                $boostPercent = $streak?->boost ?? 0;
-                $earnedXp = (int) round($baseXp * (1 + $boostPercent / 100));
-
-                $user->increment('xp', $earnedXp);
-            }
+            $user->increment('xp', $earnedXp);
 
             return response()->json(['publicUrl' => $publicUrl]);
         } catch (\Exception $e) {
