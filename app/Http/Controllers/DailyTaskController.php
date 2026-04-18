@@ -10,6 +10,7 @@ use App\Models\Task;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Http\Request;
 
 class DailyTaskController extends Controller
 {
@@ -57,5 +58,27 @@ class DailyTaskController extends Controller
         });
 
         return response()->json($dailyTask->load('task.subcategory'), 201);
+    }
+
+    public function today(Request $request)
+    {
+        $user = $request->user();
+
+        $dailyTasks = DailyTask::with('task')
+            ->where('user_id', $user->id)
+            ->where('date', Carbon::today())
+            ->get()
+            ->sortBy(fn($dt) => match($dt->task->category) {
+                'meal'           => 1,
+                'sport'          => 2,
+                'mental_health'  => 3,
+                default          => 4,
+            })
+            ->values();
+
+        return response()->json([
+            'date'  => Carbon::today()->toDateString(),
+            'tasks' => $dailyTasks,
+        ], 200);
     }
 }

@@ -221,3 +221,7 @@ Authorization: Bearer 2|twgmj5DAoWqJcxISsBvTu8aaPJi2d8VS8LQE0sUF453e1daf
     ]
   }
 }
+
+### Daily tasks
+GET http://localhost/api/daily-tasks/today
+Authorization: Bearer 2|Vu3l4EZ8FZUDTapOkYIiFcDO9TdAAocvS63EPlED1ec3c928

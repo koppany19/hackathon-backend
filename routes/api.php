@@ -43,6 +43,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/feed/image', [ImageController::class, 'uploadTaskImage']);
     Route::get('/leaderboard', [LeaderboardController::class, 'index']);
     Route::post('/daily-tasks/custom', [DailyTaskController::class, 'storeCustom']);
+    Route::get('/daily-tasks/today', [DailyTaskController::class, 'today']);
 
     Route::post('/schedules/from-image', [ScheduleController::class, 'replaceFromImage']);
     Route::get('/schedules', [ScheduleController::class, 'index']);

@@ -36,19 +36,23 @@ class DailyTaskSeeder extends Seeder
 
             foreach ($categories as $category) {
                 $task = DB::table('tasks')
-                    ->where('category', $category)
-                    ->where('subcategory', 'individual')
-                    ->where('difficulty', $difficulty)
-                    ->where('is_active', true)
+                    ->join('subcategories', 'tasks.subcategory_id', '=', 'subcategories.id')
+                    ->where('tasks.category', $category)
+                    ->where('subcategories.name', 'individual')
+                    ->where('tasks.difficulty', $difficulty)
+                    ->where('tasks.is_active', true)
                     ->inRandomOrder()
+                    ->select('tasks.*')
                     ->first();
 
                 if (!$task) {
                     $task = DB::table('tasks')
-                        ->where('category', $category)
-                        ->where('subcategory', 'individual')
-                        ->where('is_active', true)
+                        ->join('subcategories', 'tasks.subcategory_id', '=', 'subcategories.id')
+                        ->where('tasks.category', $category)
+                        ->where('subcategories.name', 'individual')
+                        ->where('tasks.is_active', true)
                         ->inRandomOrder()
+                        ->select('tasks.*')
                         ->first();
                 }
 
