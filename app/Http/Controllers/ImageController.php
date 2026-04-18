@@ -6,6 +6,7 @@ use App\Models\DailyTask;
 use App\Services\GeminiMealHealthService;
 use App\Services\ImageModerationService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -70,13 +71,24 @@ class ImageController extends Controller
         $file = $request->file('image');
         $user = $request->user();
 
+        Log::info('uploadTaskImage: start', [
+            'user_id'       => $user->id,
+            'daily_task_id' => $request->input('daily_task_id'),
+            'mime'          => $file?->getMimeType(),
+            'size'          => $file?->getSize(),
+        ]);
+
         try {
             if (! $this->moderation->isSafe($file)) {
+                Log::warning('uploadTaskImage: image not safe', ['user_id' => $user->id]);
                 return response()->json(['error' => 'The image contains inappropriate content.'], 422);
             }
         } catch (\RuntimeException $e) {
+            Log::error('uploadTaskImage: moderation error', ['error' => $e->getMessage()]);
             return response()->json(['error' => $e->getMessage()], $e->getCode() ?: 500);
         }
+
+        Log::info('uploadTaskImage: image is safe');
 
         $dailyTask = DailyTask::with('task.subcategory')
             ->where('id', $request->integer('daily_task_id'))
@@ -84,13 +96,24 @@ class ImageController extends Controller
             ->first();
 
         if (! $dailyTask) {
+            Log::warning('uploadTaskImage: daily task not found', [
+                'daily_task_id' => $request->input('daily_task_id'),
+                'user_id'       => $user->id,
+            ]);
             return response()->json(['error' => 'Daily task not found.'], 404);
         }
+
+        Log::info('uploadTaskImage: daily task found', [
+            'task_id'  => $dailyTask->task_id,
+            'category' => $dailyTask->task?->category,
+        ]);
 
         if ($dailyTask->task?->category === 'meal') {
             try {
                 $healthScore = $this->mealHealth->getHealthScore($file);
+                Log::info('uploadTaskImage: Gemini health score', ['score' => $healthScore]);
             } catch (\RuntimeException $e) {
+                Log::error('uploadTaskImage: Gemini error', ['error' => $e->getMessage(), 'code' => $e->getCode()]);
                 return response()->json(['error' => $e->getMessage()], $e->getCode() ?: 500);
             }
 
@@ -107,10 +130,13 @@ class ImageController extends Controller
         $randomString = Str::random(8);
         $path = "{$user->id}/{$timestamp}_{$randomString}.{$extension}";
 
+        Log::info('uploadTaskImage: uploading to supabase', ['path' => $path]);
+
         try {
             $uploaded = Storage::disk('supabase-feed')->put($path, file_get_contents($file->getRealPath()), 'public');
 
             if (! $uploaded) {
+                Log::error('uploadTaskImage: supabase put returned false', ['path' => $path]);
                 return response()->json(['error' => 'Upload failed'], 500);
             }
 
@@ -125,8 +151,14 @@ class ImageController extends Controller
 
             $user->increment('xp', $earnedXp);
 
+            Log::info('uploadTaskImage: success', ['publicUrl' => $publicUrl, 'xp' => $earnedXp]);
+
             return response()->json(['publicUrl' => $publicUrl]);
         } catch (\Exception $e) {
+            Log::error('uploadTaskImage: unexpected exception', [
+                'message' => $e->getMessage(),
+                'trace'   => $e->getTraceAsString(),
+            ]);
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
