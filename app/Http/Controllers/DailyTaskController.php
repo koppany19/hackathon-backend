@@ -6,6 +6,8 @@ use App\Http\Requests\CreateCustomDailyTaskRequest;
 use App\Models\DailyTask;
 use App\Models\Subcategory;
 use App\Models\Task;
+use App\Models\User;
+use App\Services\GroupMatchingService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -13,6 +15,10 @@ use Illuminate\Support\Facades\DB;
 
 class DailyTaskController extends Controller
 {
+    public function __construct(
+        private GroupMatchingService $groupMatchingService,
+    ) {}
+
     public function storeCustom(CreateCustomDailyTaskRequest $request): JsonResponse
     {
         $user      = $request->user();
@@ -21,6 +27,16 @@ class DailyTaskController extends Controller
         $subcategory = Subcategory::where('name', $validated['subcategory'])->firstOrFail();
 
         $dailyTask = DB::transaction(function () use ($user, $validated, $subcategory) {
+            // Replace any existing DailyTask for the same category today
+            $existing = DailyTask::where('user_id', $user->id)
+                ->whereDate('date', Carbon::today())
+                ->whereHas('task', fn ($q) => $q->where('category', $validated['category']))
+                ->first();
+
+            if ($existing) {
+                $existing->delete();
+            }
+
             $task = Task::create([
                 'title'              => $validated['title'],
                 'description'        => $validated['description'],
@@ -54,42 +70,56 @@ class DailyTaskController extends Controller
             ->where('date', Carbon::today())
             ->get()
             ->sortBy(fn($dt) => match($dt->task->category) {
-                'meal'           => 1,
-                'sport'          => 2,
-                'mental_health'  => 3,
-                default          => 4,
+                'meal'          => 1,
+                'sport'         => 2,
+                'mental_health' => 3,
+                default         => 4,
             })
             ->values();
 
         return response()->json([
             'date'  => Carbon::today()->toDateString(),
             'tasks' => $dailyTasks,
-        ], 200);
+        ]);
     }
 
     public function available(Request $request): JsonResponse
     {
-        $user = $request->user();
+        $user      = $request->user();
+        $today     = strtolower(Carbon::today()->format('l'));
+        $todayDate = Carbon::today();
+
+        $user->load('scheduleItems');
 
         $joinedTaskIds = DailyTask::where('user_id', $user->id)
-            ->whereDate('date', Carbon::today())
+            ->whereDate('date', $todayDate)
             ->pluck('task_id');
 
-        // User-created group tasks visible to everyone
-        $userCreatedTasks = Task::whereHas('subcategory', fn ($q) => $q->where('name', 'group_created'))
-            ->where('is_active', true)
-            ->whereDate('created_at', Carbon::today())
-            ->whereNotIn('id', $joinedTaskIds)
-            ->with('subcategory', 'creator')
-            ->get();
+        // User-created group tasks: same university + overlapping free time with creator
+        $userCreatedTasks = collect();
+
+        if ($user->university_id) {
+            $userCreatedTasks = Task::whereHas('subcategory', fn ($q) => $q->where('name', 'group_created'))
+                ->whereHas('creator', fn ($q) => $q->where('university_id', $user->university_id))
+                ->where('is_active', true)
+                ->whereDate('created_at', $todayDate)
+                ->whereNotIn('id', $joinedTaskIds)
+                ->with(['subcategory', 'creator.scheduleItems'])
+                ->get()
+                ->filter(function ($task) use ($user, $today) {
+                    if (!$task->creator) return false;
+                    return $this->groupMatchingService->hasScheduleOverlap($user, $task->creator, $today);
+                })
+                ->values();
+        }
 
         // AI-generated group tasks targeted at this specific user
         $aiGroupTasks = Task::whereHas('subcategory', fn ($q) => $q->where('name', 'group'))
             ->whereHas('participants', fn ($q) => $q->where('user_id', $user->id))
             ->where('is_active', true)
-            ->whereDate('created_at', Carbon::today())
+            ->whereDate('created_at', $todayDate)
             ->whereNotIn('id', $joinedTaskIds)
-            ->with('subcategory', 'creator')
+            ->with(['subcategory', 'creator'])
             ->get();
 
         return response()->json($userCreatedTasks->merge($aiGroupTasks)->values());
@@ -115,6 +145,57 @@ class DailyTaskController extends Controller
             'status'  => 'pending',
         ]);
 
+        $this->notifyTaskCreator($task, $user);
+
         return response()->json($dailyTask->load('task.subcategory'), 201);
+    }
+
+    public function groupTasksForUser(Request $request, User $user): JsonResponse
+    {
+        $today    = strtolower(Carbon::today()->format('l'));
+        $todayDate = Carbon::today();
+
+        $user->load('scheduleItems');
+
+        $joinedTaskIds = DailyTask::where('user_id', $user->id)
+            ->whereDate('date', $todayDate)
+            ->pluck('task_id');
+
+        // AI-generated group tasks where this user is a participant
+        $aiGroupTasks = Task::whereHas('subcategory', fn ($q) => $q->where('name', 'group'))
+            ->whereHas('participants', fn ($q) => $q->where('user_id', $user->id))
+            ->where('is_active', true)
+            ->whereDate('created_at', $todayDate)
+            ->whereNotIn('id', $joinedTaskIds)
+            ->with(['subcategory', 'creator'])
+            ->get()
+            ->filter(fn ($task) => $this->groupMatchingService->taskTimeInUserFreeWindow($user, $today, $task->time))
+            ->values();
+
+        // User-created group tasks from the same university with overlapping free time
+        $userCreatedTasks = collect();
+
+        if ($user->university_id) {
+            $userCreatedTasks = Task::whereHas('subcategory', fn ($q) => $q->where('name', 'group_created'))
+                ->whereHas('creator', fn ($q) => $q->where('university_id', $user->university_id))
+                ->where('is_active', true)
+                ->whereDate('created_at', $todayDate)
+                ->whereNotIn('id', $joinedTaskIds)
+                ->with(['subcategory', 'creator.scheduleItems'])
+                ->get()
+                ->filter(function ($task) use ($user, $today) {
+                    if (!$task->creator) return false;
+                    if (!$this->groupMatchingService->hasScheduleOverlap($user, $task->creator, $today)) return false;
+                    return $this->groupMatchingService->taskTimeInUserFreeWindow($user, $today, $task->time);
+                })
+                ->values();
+        }
+
+        return response()->json($aiGroupTasks->merge($userCreatedTasks)->values());
+    }
+
+    private function notifyTaskCreator(Task $task, \App\Models\User $joiner): void
+    {
+        // TODO: send push notification to $task->creator when $joiner joins their group task
     }
 }

@@ -33,10 +33,19 @@ class GroupMatchingService
     {
         $today = strtolower(Carbon::today()->format('l'));
 
+        Log::info('[GroupMatching] Starting run', ['day' => $today, 'date' => Carbon::today()->toDateString()]);
+
         $universityIds = User::whereNotNull('university_id')
             ->has('profile')
             ->distinct()
             ->pluck('university_id');
+
+        Log::info('[GroupMatching] Universities to process', ['count' => $universityIds->count(), 'ids' => $universityIds->toArray()]);
+
+        if ($universityIds->isEmpty()) {
+            Log::warning('[GroupMatching] No universities found — no users have a university_id set with a profile.');
+            return;
+        }
 
         foreach ($universityIds as $universityId) {
             $users = User::with(['profile', 'scheduleItems', 'city'])
@@ -44,10 +53,21 @@ class GroupMatchingService
                 ->has('profile')
                 ->get();
 
-            if ($users->count() < 2) continue;
+            Log::info('[GroupMatching] University users loaded', [
+                'university_id' => $universityId,
+                'user_count'    => $users->count(),
+                'user_ids'      => $users->pluck('id')->toArray(),
+            ]);
+
+            if ($users->count() < 2) {
+                Log::info('[GroupMatching] Skipping university — fewer than 2 users with profiles', ['university_id' => $universityId]);
+                continue;
+            }
 
             $this->processUniversityGroup($users, $today);
         }
+
+        Log::info('[GroupMatching] Run complete');
     }
 
     private function processUniversityGroup(Collection $users, string $today): void
@@ -63,30 +83,69 @@ class GroupMatchingService
 
     private function processPair(User $userA, User $userB, string $today): void
     {
-        if (!$userA->profile || !$userB->profile) return;
+        $pairLabel = "users [{$userA->id},{$userB->id}]";
 
-        $overlapWindow = $this->findFreeTimeOverlap($userA, $userB, $today);
-        if (!$overlapWindow) return;
+        if (!$userA->profile || !$userB->profile) {
+            Log::info("[GroupMatching] Skipping {$pairLabel} — missing profile");
+            return;
+        }
 
-        $score     = $this->matchingService->calculateScore($userA->profile, $userB->profile);
-        $cityName  = $userA->city?->name ?? $userB->city?->name ?? 'your city';
+        $freeA = $this->computeFreeWindows($userA->scheduleItems->where('day_of_week', $today)->values());
+        $freeB = $this->computeFreeWindows($userB->scheduleItems->where('day_of_week', $today)->values());
+
+        Log::info("[GroupMatching] Free windows for {$pairLabel}", [
+            'day'        => $today,
+            "user_{$userA->id}_free" => $freeA,
+            "user_{$userB->id}_free" => $freeB,
+        ]);
+
+        $overlapWindow = $this->findFreeTimeOverlapFromWindows($freeA, $freeB);
+
+        if (!$overlapWindow) {
+            Log::info("[GroupMatching] Skipping {$pairLabel} — no free time overlap >= " . self::MIN_OVERLAP_MINUTES . " min on {$today}");
+            return;
+        }
+
+        Log::info("[GroupMatching] Overlap found for {$pairLabel}", $overlapWindow);
+
+        $score      = $this->matchingService->calculateScore($userA->profile, $userB->profile);
+        $cityName   = $userA->city?->name ?? $userB->city?->name ?? 'your city';
         $timeWindow = $overlapWindow['start'] . '-' . $overlapWindow['end'];
         $difficulty = $this->computeDifficulty($userA, $userB, $today);
 
+        Log::info("[GroupMatching] Scores for {$pairLabel}", array_merge($score, [
+            'city'       => $cityName,
+            'time_window' => $timeWindow,
+            'difficulty' => $difficulty,
+        ]));
+
         foreach (self::CATEGORY_MAP as $category => ['score_key' => $scoreKey, 'profile_key' => $profileKey]) {
-            if ($score[$scoreKey] < self::MIN_CATEGORY_SCORE) continue;
+            if ($score[$scoreKey] < self::MIN_CATEGORY_SCORE) {
+                Log::info("[GroupMatching] Skipping category '{$category}' for {$pairLabel} — score {$score[$scoreKey]} < " . self::MIN_CATEGORY_SCORE);
+                continue;
+            }
 
             if ($category === 'meal' && $this->matchingService->hasFoodConflict(
                 $userA->profile->food,
                 $userB->profile->food,
-            )) continue;
+            )) {
+                Log::info("[GroupMatching] Skipping 'meal' for {$pairLabel} — food restriction conflict");
+                continue;
+            }
 
-            if ($this->groupTaskExistsForPair($userA->id, $userB->id, $category)) continue;
+            if ($this->groupTaskExistsForPair($userA->id, $userB->id, $category)) {
+                Log::info("[GroupMatching] Skipping '{$category}' for {$pairLabel} — group task already exists today");
+                continue;
+            }
 
             $sharedInterests = $this->getSharedInterests(
                 $userA->profile->{$profileKey} ?? [],
                 $userB->profile->{$profileKey} ?? [],
             );
+
+            Log::info("[GroupMatching] Generating '{$category}' task for {$pairLabel}", [
+                'shared_interests' => $sharedInterests,
+            ]);
 
             $this->generateAndPersistTask(
                 $category,
@@ -107,6 +166,14 @@ class GroupMatchingService
         string $timeWindow,
         array $users,
     ): void {
+        Log::info('[GroupMatching] Calling Gemini', [
+            'category'  => $category,
+            'city'      => $cityName,
+            'difficulty' => $difficulty,
+            'window'    => $timeWindow,
+            'interests' => $sharedInterests,
+        ]);
+
         $taskData = $this->geminiService->generateTask(
             $category,
             $sharedInterests,
@@ -115,49 +182,94 @@ class GroupMatchingService
             $timeWindow,
         );
 
-        if (!$taskData) return;
+        if (!$taskData) {
+            Log::error('[GroupMatching] Gemini returned null — skipping task creation');
+            return;
+        }
+
+        Log::info('[GroupMatching] Gemini response', $taskData);
 
         $subcategory = Subcategory::where('name', 'group')->first();
 
         if (!$subcategory) {
-            Log::error('GroupMatchingService: "group" subcategory not found — run seeders.');
+            Log::error('[GroupMatching] "group" subcategory not found in DB — run seeders');
             return;
         }
 
-        DB::transaction(function () use ($taskData, $subcategory, $users) {
-            $task = Task::create([
-                'title'              => $taskData['title'],
-                'description'        => $taskData['description'],
-                'category'           => $taskData['category'],
-                'subcategory_id'     => $subcategory->id,
-                'is_active'          => true,
-                'difficulty'         => $taskData['difficulty'],
-                'time'               => $taskData['time'],
-                'location'           => $taskData['location'],
-                'created_by_user_id' => null,
-            ]);
-
-            foreach ($users as $user) {
-                CreatedTaskParticipant::create([
-                    'task_id' => $task->id,
-                    'user_id' => $user->id,
+        try {
+            DB::transaction(function () use ($taskData, $subcategory, $users) {
+                $task = Task::create([
+                    'title'              => $taskData['title'],
+                    'description'        => $taskData['description'],
+                    'category'           => $taskData['category'],
+                    'subcategory_id'     => $subcategory->id,
+                    'is_active'          => true,
+                    'difficulty'         => $taskData['difficulty'],
+                    'time'               => $taskData['time'],
+                    'location'           => $taskData['location'],
+                    'created_by_user_id' => null,
                 ]);
-            }
 
-            $this->notifyUsers($users, $task);
-        });
+                Log::info('[GroupMatching] Task created', ['task_id' => $task->id, 'title' => $task->title]);
+
+                foreach ($users as $user) {
+                    CreatedTaskParticipant::create([
+                        'task_id' => $task->id,
+                        'user_id' => $user->id,
+                    ]);
+                    Log::info('[GroupMatching] Participant linked', ['task_id' => $task->id, 'user_id' => $user->id]);
+                }
+
+                $this->notifyUsers($users, $task);
+            });
+        } catch (\Throwable $e) {
+            Log::error('[GroupMatching] DB transaction failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+        }
     }
 
+    // -------------------------------------------------------------------------
+    // Free-time overlap
+    // -------------------------------------------------------------------------
+
+    public function taskTimeInUserFreeWindow(User $user, string $dayOfWeek, ?string $taskTime): bool
+    {
+        if (!$taskTime) return true; // no time set — always considered available
+
+        $taskMin  = $this->timeToMinutes($taskTime);
+        $freeWindows = $this->computeFreeWindows(
+            $user->scheduleItems->where('day_of_week', $dayOfWeek)->values()
+        );
+
+        foreach ($freeWindows as $window) {
+            if ($taskMin >= $window['start_min'] && $taskMin < $window['end_min']) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public function hasScheduleOverlap(User $userA, User $userB, string $dayOfWeek): bool
+    {
+        $freeA = $this->computeFreeWindows($userA->scheduleItems->where('day_of_week', $dayOfWeek)->values());
+        $freeB = $this->computeFreeWindows($userB->scheduleItems->where('day_of_week', $dayOfWeek)->values());
+
+        return $this->findFreeTimeOverlapFromWindows($freeA, $freeB) !== null;
+    }
 
     private function findFreeTimeOverlap(User $userA, User $userB, string $today): ?array
     {
-        $freeA = $this->computeFreeWindows(
-            $userA->scheduleItems->where('day_of_week', $today)->values()
-        );
-        $freeB = $this->computeFreeWindows(
-            $userB->scheduleItems->where('day_of_week', $today)->values()
-        );
+        $freeA = $this->computeFreeWindows($userA->scheduleItems->where('day_of_week', $today)->values());
+        $freeB = $this->computeFreeWindows($userB->scheduleItems->where('day_of_week', $today)->values());
 
+        return $this->findFreeTimeOverlapFromWindows($freeA, $freeB);
+    }
+
+    private function findFreeTimeOverlapFromWindows(array $freeA, array $freeB): ?array
+    {
         foreach ($freeA as $windowA) {
             foreach ($freeB as $windowB) {
                 $overlapStart    = max($windowA['start_min'], $windowB['start_min']);
@@ -226,6 +338,9 @@ class GroupMatchingService
         return $free;
     }
 
+    // -------------------------------------------------------------------------
+    // Helpers
+    // -------------------------------------------------------------------------
 
     private function groupTaskExistsForPair(int $userAId, int $userBId, string $category): bool
     {
