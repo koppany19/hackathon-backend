@@ -6,6 +6,7 @@ use App\Http\Controllers\ImageController;
 use App\Http\Controllers\ImageModerationController;
 use App\Http\Controllers\LeaderboardController;
 use App\Http\Controllers\OAuthController;
+use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\TimetableController;
 use Illuminate\Support\Facades\Route;
@@ -42,6 +43,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/feed/image', [ImageController::class, 'uploadTaskImage']);
     Route::get('/leaderboard', [LeaderboardController::class, 'index']);
     Route::post('/daily-tasks/custom', [DailyTaskController::class, 'storeCustom']);
+
+    Route::post('/schedules/from-image', [ScheduleController::class, 'replaceFromImage']);
+    Route::post('/schedules', [ScheduleController::class, 'store']);
+    Route::put('/schedules/{scheduleItem}', [ScheduleController::class, 'update']);
 });
 
 
