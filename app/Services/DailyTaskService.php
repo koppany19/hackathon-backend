@@ -41,14 +41,14 @@ class DailyTaskService
             $subcategory = $this->getSubcategory($taskType, $category);
 
             $task = Task::where('category', $category)
-                ->where('subcategory', $subcategory)
+                ->whereHas('subcategory', fn ($q) => $q->where('name', $subcategory))
                 ->where('is_active', true)
                 ->inRandomOrder()
                 ->first();
 
             if (!$task) {
                 $task = Task::where('category', $category)
-                    ->where('subcategory', 'individual')
+                    ->whereHas('subcategory', fn ($q) => $q->where('name', 'individual'))
                     ->where('is_active', true)
                     ->inRandomOrder()
                     ->first();

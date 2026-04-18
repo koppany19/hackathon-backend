@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
             UniversitySeeder::class,
             LevelSeeder::class,
             StreakSeeder::class,
+            SubcategorySeeder::class,
             DailyTaskSeeder::class,
             TaskSeeder::class,
             UserSeeder::class,

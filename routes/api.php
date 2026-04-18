@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\DailyTaskController;
 use App\Http\Controllers\ImageController;
 use App\Http\Controllers\ImageModerationController;
 use App\Http\Controllers\LeaderboardController;
@@ -40,6 +41,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/users/avatar', [ImageController::class, 'uploadAvatar']);
     Route::post('/feed/image', [ImageController::class, 'uploadTaskImage']);
     Route::get('/leaderboard', [LeaderboardController::class, 'index']);
+    Route::post('/daily-tasks/custom', [DailyTaskController::class, 'storeCustom']);
 });
 
 
