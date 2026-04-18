@@ -12,6 +12,14 @@ class TestUsersSeeder extends Seeder
 {
     public function run(): void
     {
+        $testEmails = [
+            'balint.peter@test.com', 'csaba.molnar@test.com', 'daniel.kovacs@test.com',
+            'eszter.varga@test.com', 'gabor.toth@test.com', 'anna.szabo@test.com',
+            'bela.horvath@test.com', 'kata.fekete@test.com', 'norbert.kiss@test.com',
+            'reka.papp@test.com',
+        ];
+        User::whereIn('email', $testEmails)->delete();
+
         // Koppány szabad ablakai:
         // Hétfő:    14:20–16:30
         // Kedd:     11:50–14:30
@@ -106,11 +114,11 @@ class TestUsersSeeder extends Seeder
             ]);
 
             UserProfile::create([
-                'user_id'        => $user->id,
+                'user_id'         => $user->id,
                 'sport_frequency' => $similarProfile['sport_frequency'],
-                'food'           => json_encode($similarProfile['food']),
-                'sports'         => json_encode($similarProfile['sports']),
-                'social'         => json_encode($similarProfile['social']),
+                'food'            => $similarProfile['food'],
+                'sports'          => $similarProfile['sports'],
+                'social'          => $similarProfile['social'],
             ]);
 
             foreach ($similarSchedule as $item) {
@@ -210,11 +218,11 @@ class TestUsersSeeder extends Seeder
             ]);
 
             UserProfile::create([
-                'user_id'        => $user->id,
+                'user_id'         => $user->id,
                 'sport_frequency' => $differentProfile['sport_frequency'],
-                'food'           => json_encode($differentProfile['food']),
-                'sports'         => json_encode($differentProfile['sports']),
-                'social'         => json_encode($differentProfile['social']),
+                'food'            => $differentProfile['food'],
+                'sports'          => $differentProfile['sports'],
+                'social'          => $differentProfile['social'],
             ]);
 
             foreach ($differentSchedule as $item) {

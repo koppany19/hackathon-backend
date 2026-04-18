@@ -49,7 +49,11 @@ class GeminiGroupTaskService
 
         if (!$parsed) return null;
 
-        return $this->sanitize($parsed, $category, $difficulty);
+        $result = $this->sanitize($parsed, $category, $difficulty);
+
+        Log::info('GeminiGroupTaskService generated task', $result);
+
+        return $result;
     }
 
     private function buildPayload(
