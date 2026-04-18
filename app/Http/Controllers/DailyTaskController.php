@@ -8,6 +8,7 @@ use App\Models\Subcategory;
 use App\Models\Task;
 use App\Models\User;
 use App\Services\GroupMatchingService;
+use App\Services\OneSignalService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -17,6 +18,7 @@ class DailyTaskController extends Controller
 {
     public function __construct(
         private GroupMatchingService $groupMatchingService,
+        private OneSignalService $oneSignalService,
     ) {}
 
     public function storeCustom(CreateCustomDailyTaskRequest $request): JsonResponse
@@ -231,6 +233,19 @@ class DailyTaskController extends Controller
 
     private function notifyTaskCreator(Task $task, \App\Models\User $joiner): void
     {
-        // TODO: send push notification to $task->creator when $joiner joins their group task
+        if (!$task->creator || $task->creator->id === $joiner->id) {
+            return;
+        }
+
+        $this->oneSignalService->trySendPushByExternalIds(
+            externalIds: [(string) $task->creator->id],
+            title: 'Someone joined your task',
+            message: "{$joiner->name} joined your task: {$task->title}",
+            data: [
+                'type' => 'group_task_joined',
+                'task_id' => (string) $task->id,
+                'joiner_user_id' => (string) $joiner->id,
+            ],
+        );
     }
 }

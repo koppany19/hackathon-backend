@@ -59,6 +59,7 @@ class OAuthController extends Controller
             return response()->json([
                 'user'  => $user,
                 'token' => $token,
+                'onesignal_external_id' => (string) $user->id,
             ], 200);
 
         } catch (\Exception $e) {

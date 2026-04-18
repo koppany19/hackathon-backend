@@ -27,6 +27,7 @@ class GroupMatchingService
     public function __construct(
         private MatchingService $matchingService,
         private GeminiGroupTaskService $geminiService,
+        private OneSignalService $oneSignalService,
     ) {}
 
     public function run(): void
@@ -398,6 +399,29 @@ class GroupMatchingService
 
     private function notifyUsers(array $users, Task $task): void
     {
-        // TODO: send push notifications via Expo Push Token once integrated
+        $externalIds = array_values(array_unique(array_map(
+            fn (User $user) => (string) $user->id,
+            $users,
+        )));
+
+        if (empty($externalIds)) {
+            return;
+        }
+
+        $title = 'New group task for today';
+        $message = $task->time
+            ? "{$task->title} at {$task->time}."
+            : "{$task->title} is now available.";
+
+        $this->oneSignalService->trySendPushByExternalIds(
+            externalIds: $externalIds,
+            title: $title,
+            message: $message,
+            data: [
+                'type' => 'group_task_created',
+                'task_id' => (string) $task->id,
+                'category' => (string) $task->category,
+            ],
+        );
     }
 }

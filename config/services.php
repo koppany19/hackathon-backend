@@ -25,6 +25,12 @@ return [
         'gemini_key' => env('GEMINI_API_KEY'),
     ],
 
+    'onesignal' => [
+        'app_id' => env('ONESIGNAL_APP_ID'),
+        'rest_api_key' => env('ONESIGNAL_REST_API_KEY'),
+        'base_url' => env('ONESIGNAL_BASE_URL', 'https://api.onesignal.com'),
+    ],
+
 
     'postmark' => [
         'key' => env('POSTMARK_API_KEY'),

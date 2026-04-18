@@ -56,6 +56,7 @@ class AuthController extends Controller
         return response()->json([
             'user'  => $user,
             'token' => $token,
+            'onesignal_external_id' => (string) $user->id,
         ], 201);
     }
 
@@ -86,6 +87,7 @@ class AuthController extends Controller
         return response()->json([
             'user'  => $user,
             'token' => $token,
+            'onesignal_external_id' => (string) $user->id,
             'level' => [
                 'current'      => $user->level,
                 'current_xp'   => $user->xp,
@@ -156,7 +158,11 @@ class AuthController extends Controller
 
             $token = $user->createToken('mobile')->plainTextToken;
 
-            return response()->json(['user' => $user, 'token' => $token], 200);
+            return response()->json([
+                'user' => $user,
+                'token' => $token,
+                'onesignal_external_id' => (string) $user->id,
+            ], 200);
 
         } catch (\Exception $e) {
             Log::error('Onboarding error:', [
@@ -192,6 +198,7 @@ class AuthController extends Controller
                     'xp_to_next'    => $nextLevel ? $nextLevel->needed_xp - $user->xp : null,
                 ],
             ]),
+            'onesignal_external_id' => (string) $user->id,
         ], 200);
     }
 }

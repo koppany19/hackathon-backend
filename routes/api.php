@@ -7,6 +7,7 @@ use App\Http\Controllers\ImageController;
 use App\Http\Controllers\ImageModerationController;
 use App\Http\Controllers\LeaderboardController;
 use App\Http\Controllers\OAuthController;
+use App\Http\Controllers\PushNotificationController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\TimetableController;
@@ -43,6 +44,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/users/avatar', [ImageController::class, 'uploadAvatar']);
     Route::post('/feed/image', [ImageController::class, 'uploadTaskImage']);
     Route::get('/leaderboard', [LeaderboardController::class, 'index']);
+    Route::post('/push/test/me', [PushNotificationController::class, 'sendToMe']);
     Route::post('/daily-tasks/custom', [DailyTaskController::class, 'storeCustom']);
     Route::get('/daily-tasks/today', [DailyTaskController::class, 'today']);
     Route::get('/daily-tasks/available', [DailyTaskController::class, 'available']);
