@@ -20,8 +20,6 @@ class CreateCustomDailyTaskRequest extends FormRequest
             'subcategory'          => 'required|in:individual_created,group_created',
             'time'                 => 'nullable|date_format:H:i',
             'location'             => 'nullable|string|max:255',
-            'invited_user_ids'     => 'nullable|array',
-            'invited_user_ids.*'   => 'integer|exists:users,id',
         ];
     }
 }

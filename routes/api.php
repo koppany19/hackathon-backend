@@ -44,6 +44,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/leaderboard', [LeaderboardController::class, 'index']);
     Route::post('/daily-tasks/custom', [DailyTaskController::class, 'storeCustom']);
     Route::get('/daily-tasks/today', [DailyTaskController::class, 'today']);
+    Route::get('/daily-tasks/available', [DailyTaskController::class, 'available']);
+    Route::post('/daily-tasks/{task}/join', [DailyTaskController::class, 'join']);
 
     Route::post('/schedules/from-image', [ScheduleController::class, 'replaceFromImage']);
     Route::get('/schedules', [ScheduleController::class, 'index']);

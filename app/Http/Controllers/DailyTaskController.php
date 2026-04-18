@@ -3,14 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\CreateCustomDailyTaskRequest;
-use App\Models\CreatedTaskParticipant;
 use App\Models\DailyTask;
 use App\Models\Subcategory;
 use App\Models\Task;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class DailyTaskController extends Controller
 {
@@ -27,7 +26,7 @@ class DailyTaskController extends Controller
                 'description'        => $validated['description'],
                 'category'           => $validated['category'],
                 'subcategory_id'     => $subcategory->id,
-                'is_active'          => false,
+                'is_active'          => true,
                 'time'               => $validated['time'] ?? null,
                 'location'           => $validated['location'] ?? null,
                 'created_by_user_id' => $user->id,
@@ -40,27 +39,13 @@ class DailyTaskController extends Controller
                 'status'  => 'pending',
             ]);
 
-            foreach ($validated['invited_user_ids'] ?? [] as $invitedUserId) {
-                CreatedTaskParticipant::create([
-                    'task_id' => $task->id,
-                    'user_id' => $invitedUserId,
-                ]);
-
-                DailyTask::create([
-                    'user_id' => $invitedUserId,
-                    'task_id' => $task->id,
-                    'date'    => Carbon::today(),
-                    'status'  => 'pending',
-                ]);
-            }
-
             return $creatorTask;
         });
 
         return response()->json($dailyTask->load('task.subcategory'), 201);
     }
 
-    public function today(Request $request)
+    public function today(Request $request): JsonResponse
     {
         $user = $request->user();
 
@@ -80,5 +65,46 @@ class DailyTaskController extends Controller
             'date'  => Carbon::today()->toDateString(),
             'tasks' => $dailyTasks,
         ], 200);
+    }
+
+    public function available(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $joinedTaskIds = DailyTask::where('user_id', $user->id)
+            ->whereDate('date', Carbon::today())
+            ->pluck('task_id');
+
+        $tasks = Task::whereHas('subcategory', fn ($q) => $q->where('name', 'group_created'))
+            ->where('is_active', true)
+            ->whereDate('created_at', Carbon::today())
+            ->whereNotIn('id', $joinedTaskIds)
+            ->with('subcategory', 'creator')
+            ->get();
+
+        return response()->json($tasks);
+    }
+
+    public function join(Request $request, Task $task): JsonResponse
+    {
+        $user = $request->user();
+
+        $alreadyJoined = DailyTask::where('user_id', $user->id)
+            ->where('task_id', $task->id)
+            ->whereDate('date', Carbon::today())
+            ->exists();
+
+        if ($alreadyJoined) {
+            return response()->json(['message' => 'Already joined this task today.'], 409);
+        }
+
+        $dailyTask = DailyTask::create([
+            'user_id' => $user->id,
+            'task_id' => $task->id,
+            'date'    => Carbon::today(),
+            'status'  => 'pending',
+        ]);
+
+        return response()->json($dailyTask->load('task.subcategory'), 201);
     }
 }

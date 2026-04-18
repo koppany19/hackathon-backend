@@ -38,9 +38,22 @@ class DailyTaskService
         $categories = ['sport', 'meal', 'mental_health'];
 
         foreach ($categories as $category) {
-            $subcategory = $this->getSubcategory($taskType, $category);
+            $effectiveTaskType = $taskType;
+
+            if ($category === 'meal' && $bestMatch) {
+                $hasFoodConflict = $this->matchingService->hasFoodConflict(
+                    $user->profile?->food,
+                    $bestMatch['user']->profile?->food
+                );
+                if ($hasFoodConflict) {
+                    $effectiveTaskType = 'individual';
+                }
+            }
+
+            $subcategory = $this->getSubcategory($effectiveTaskType);
 
             $task = Task::where('category', $category)
+                ->where('difficulty', $difficulty)
                 ->whereHas('subcategory', fn ($q) => $q->where('name', $subcategory))
                 ->where('is_active', true)
                 ->inRandomOrder()
@@ -48,6 +61,7 @@ class DailyTaskService
 
             if (!$task) {
                 $task = Task::where('category', $category)
+                    ->where('difficulty', $difficulty)
                     ->whereHas('subcategory', fn ($q) => $q->where('name', 'individual'))
                     ->where('is_active', true)
                     ->inRandomOrder()
@@ -92,15 +106,8 @@ class DailyTaskService
         return 'hard';
     }
 
-    private function getSubcategory(string $taskType, string $category): string
+    private function getSubcategory(string $taskType): string
     {
-        if ($taskType === 'individual') return 'individual';
-
-        return match($category) {
-            'sport'         => in_array($taskType, ['group_sport', 'group', 'created']) ? 'group' : 'individual',
-            'meal'          => in_array($taskType, ['group_meal', 'group', 'created'])  ? 'group' : 'individual',
-            'mental_health' => 'individual',
-            default         => 'individual',
-        };
+        return $taskType === 'individual' ? 'individual' : 'group';
     }
 }

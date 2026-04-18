@@ -34,11 +34,13 @@ class MatchingService
         $profile = $user->profile;
         if (!$profile) return [];
 
+        if (!$user->city_id && !$user->university_id) return [];
+
         $candidates = User::with('profile')
             ->where('id', '!=', $user->id)
             ->where(function ($query) use ($user) {
-                $query->where('city_id', $user->city_id)
-                    ->orWhere('university_id', $user->university_id);
+                $query->when($user->city_id, fn ($q) => $q->where('city_id', $user->city_id))
+                    ->when($user->university_id, fn ($q) => $q->orWhere('university_id', $user->university_id));
             })
             ->get();
 
@@ -46,8 +48,6 @@ class MatchingService
 
         foreach ($candidates as $candidate) {
             if (!$candidate->profile) continue;
-
-            if ($this->hasFoodConflict($profile->food, $candidate->profile->food)) continue;
 
             $score = $this->calculateScore($profile, $candidate->profile);
 
@@ -79,7 +79,7 @@ class MatchingService
         ];
     }
 
-    private function hasFoodConflict(?array $foodA, ?array $foodB): bool
+    public function hasFoodConflict(?array $foodA, ?array $foodB): bool
     {
         if (!$foodA || !$foodB) return false;
 
