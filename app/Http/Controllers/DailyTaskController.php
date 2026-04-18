@@ -49,7 +49,7 @@ class DailyTaskController extends Controller
     {
         $user = $request->user();
 
-        $dailyTasks = DailyTask::with('task')
+        $dailyTasks = DailyTask::with('task.subcategory')
             ->where('user_id', $user->id)
             ->where('date', Carbon::today())
             ->get()

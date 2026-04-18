@@ -9,6 +9,8 @@ class Subcategory extends Model
 {
     protected $fillable = ['name', 'xp_value'];
 
+    protected $hidden = ['id', 'created_at', 'updated_at'];
+
     public function tasks(): HasMany
     {
         return $this->hasMany(Task::class);
