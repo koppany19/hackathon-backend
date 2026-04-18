@@ -60,7 +60,11 @@ class DailyTaskController extends Controller
             return $creatorTask;
         });
 
-        return response()->json($dailyTask->load('task.subcategory'), 201);
+        $dailyTask->load('task.subcategory');
+
+        $this->notifyOnCustomTaskCreated($dailyTask, $user);
+
+        return response()->json($dailyTask, 201);
     }
 
     public function today(Request $request): JsonResponse
@@ -245,6 +249,43 @@ class DailyTaskController extends Controller
                 'type' => 'group_task_joined',
                 'task_id' => (string) $task->id,
                 'joiner_user_id' => (string) $joiner->id,
+            ],
+        );
+    }
+
+    private function notifyOnCustomTaskCreated(DailyTask $dailyTask, \App\Models\User $creator): void
+    {
+        $task = $dailyTask->task;
+
+        if (!$task) {
+            return;
+        }
+
+        $externalIds = User::query()
+            ->pluck('id')
+            ->map(fn ($id) => (string) $id)
+            ->filter(fn (string $id) => $id !== '')
+            ->values()
+            ->all();
+
+        if (empty($externalIds)) {
+            return;
+        }
+
+        $message = $task->time
+            ? "{$creator->name} created a custom task: {$task->title} at {$task->time}."
+            : "{$creator->name} created a custom task: {$task->title}.";
+
+        $this->oneSignalService->trySendPushByExternalIds(
+            externalIds: $externalIds,
+            title: 'New custom task',
+            message: $message,
+            data: [
+                'type' => 'custom_task_created',
+                'task_id' => (string) $task->id,
+                'creator_user_id' => (string) $creator->id,
+                'category' => (string) $task->category,
+                'subcategory' => (string) ($task->subcategory?->name ?? ''),
             ],
         );
     }
