@@ -110,16 +110,21 @@ class AuthController extends Controller
         Log::info('Onboarding raw data:', $request->all());
 
         try {
-            $user      = $request->user();
             $validated = $request->validated();
 
-            Log::info('User:', ['id' => $user?->id]);
-            Log::info('Validated:', $validated);
+            $user = User::updateOrCreate(
+                ['google_id' => $validated['google_id']],
+                [
+                    'email'             => $validated['email'],
+                    'name'              => $validated['name'],
+                    'email_verified_at' => now(),
+                    'password'          => null,
+                    'university_id'     => $validated['university'] ?? null,
+                    'city_id'           => $validated['city'] ?? null,
+                ]
+            );
 
-            $user->update([
-                'university_id' => $validated['university'] ?? null,
-                'city_id'       => $validated['city'] ?? null,
-            ]);
+            Log::info('Onboarding user:', ['id' => $user->id]);
 
             $user->profile()->updateOrCreate(
                 ['user_id' => $user->id],
@@ -149,7 +154,9 @@ class AuthController extends Controller
 
             $user->load(['profile', 'university', 'city', 'scheduleItems']);
 
-            return response()->json(['user' => $user], 200);
+            $token = $user->createToken('mobile')->plainTextToken;
+
+            return response()->json(['user' => $user, 'token' => $token], 200);
 
         } catch (\Exception $e) {
             Log::error('Onboarding error:', [

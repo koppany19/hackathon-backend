@@ -25,7 +25,7 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
 Route::post('/google', [OAuthController::class, 'googleMobile']);
 //onboarding
-Route::post('/onboarding', [AuthController::class, 'onboarding'])->middleware('auth:sanctum');
+Route::post('/onboarding', [AuthController::class, 'onboarding']);
 Route::get('/me', [AuthController::class, 'me'])->middleware('auth:sanctum');
 
 

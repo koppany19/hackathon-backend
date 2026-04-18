@@ -14,6 +14,10 @@ class OnboardingRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'google_id'      => 'required|string',
+            'email'          => 'required|email',
+            'name'           => 'required|string|max:255',
+
             'university'     => 'nullable|exists:universities,id',
             'city'           => 'nullable|exists:cities,id',
 
