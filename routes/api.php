@@ -48,6 +48,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/daily-tasks/available', [DailyTaskController::class, 'available']);
     Route::post('/daily-tasks/{task}/join', [DailyTaskController::class, 'join']);
     Route::get('/users/{user}/group-tasks', [DailyTaskController::class, 'groupTasksForUser']);
+    Route::patch('/daily-tasks/{dailyTask}/swap/{task}', [DailyTaskController::class, 'swapTask']);
 
     Route::get('/feed/{university_id}', [FeedController::class, 'index']);
 

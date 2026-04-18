@@ -194,6 +194,17 @@ class DailyTaskController extends Controller
         return response()->json($aiGroupTasks->merge($userCreatedTasks)->values());
     }
 
+    public function swapTask(Request $request, DailyTask $dailyTask, Task $task): JsonResponse
+    {
+        if ($dailyTask->user_id !== $request->user()->id) {
+            return response()->json(['message' => 'Forbidden.'], 403);
+        }
+
+        $dailyTask->update(['task_id' => $task->id]);
+
+        return response()->json($dailyTask->fresh()->load('task.subcategory'));
+    }
+
     private function notifyTaskCreator(Task $task, \App\Models\User $joiner): void
     {
         // TODO: send push notification to $task->creator when $joiner joins their group task
