@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DailyTaskController;
+use App\Http\Controllers\FeedController;
 use App\Http\Controllers\ImageController;
 use App\Http\Controllers\ImageModerationController;
 use App\Http\Controllers\LeaderboardController;
@@ -47,6 +48,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/daily-tasks/available', [DailyTaskController::class, 'available']);
     Route::post('/daily-tasks/{task}/join', [DailyTaskController::class, 'join']);
     Route::get('/users/{user}/group-tasks', [DailyTaskController::class, 'groupTasksForUser']);
+
+    Route::get('/feed/{university_id}', [FeedController::class, 'index']);
 
     Route::post('/schedules/from-image', [ScheduleController::class, 'replaceFromImage']);
     Route::get('/schedules', [ScheduleController::class, 'index']);
