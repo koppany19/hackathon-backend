@@ -3,6 +3,8 @@
 namespace App\Models;
 use App\Models\City;
 use App\Models\University;
+use App\Observers\UserObserver;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use App\Models\UserProfile;
 use App\Models\DailyTask;
 use App\Models\CreatedTaskParticipant;
@@ -22,6 +24,7 @@ use Laravel\Sanctum\HasApiTokens;
 
 #[Fillable(['name', 'email', 'password'])]
 #[Hidden(['password', 'remember_token'])]
+#[ObservedBy(UserObserver::class)]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */

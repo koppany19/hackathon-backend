@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Task;
 use App\Services\DailyTaskService;
 use App\Services\GroupMatchingService;
 use Illuminate\Foundation\Inspiring;
@@ -9,6 +10,12 @@ use Illuminate\Support\Facades\Schedule;
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
+
+Schedule::call(function () {
+    Task::where('is_active', true)
+        ->whereDate('created_at', '<', now()->toDateString())
+        ->update(['is_active' => false]);
+})->dailyAt('00:00');
 
 Schedule::call(function () {
     app(DailyTaskService::class)->generateForAll();

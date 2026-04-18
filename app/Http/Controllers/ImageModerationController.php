@@ -22,6 +22,12 @@ class ImageModerationController extends Controller
             return response()->json(['message' => $e->getMessage()], $e->getCode() ?: 500);
         }
 
+        if (! $result['is_safe']) {
+            return response()->json([
+                'message' => 'The image contains inappropriate content: '.$result['label'].'.',
+            ], 422);
+        }
+
         return response()->json($result);
     }
 }

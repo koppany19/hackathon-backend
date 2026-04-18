@@ -14,8 +14,12 @@ class OnboardingRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'university'     => 'nullable|exists:universities,id',
-            'city'           => 'nullable|exists:cities,id',
+            'google_id'      => 'required|string',
+            'email'          => 'required|email',
+            'name'           => 'required|string|max:255',
+
+            'university_id'  => 'nullable|exists:universities,id',
+            'city_id'        => 'nullable|exists:cities,id',
 
             'sport_frequency' => 'nullable|in:daily,4_5_week,2_3_week,once_week,rarely',
 
