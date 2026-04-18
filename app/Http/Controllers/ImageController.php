@@ -6,6 +6,7 @@ use App\Models\DailyTask;
 use App\Services\GeminiMealHealthService;
 use App\Services\ImageModerationService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -29,7 +30,9 @@ class ImageController extends Controller
                 return response()->json(['error' => 'The image contains inappropriate content.'], 422);
             }
         } catch (\RuntimeException $e) {
-            return response()->json(['error' => $e->getMessage()], $e->getCode() ?: 500);
+            Log::warning('Image moderation unavailable, allowing upload through.', [
+                'error' => $e->getMessage(),
+            ]);
         }
 
         $user = $request->user();
@@ -75,7 +78,9 @@ class ImageController extends Controller
                 return response()->json(['error' => 'The image contains inappropriate content.'], 422);
             }
         } catch (\RuntimeException $e) {
-            return response()->json(['error' => $e->getMessage()], $e->getCode() ?: 500);
+            Log::warning('Image moderation unavailable, allowing upload through.', [
+                'error' => $e->getMessage(),
+            ]);
         }
 
         $dailyTask = DailyTask::with('task.subcategory')

@@ -133,6 +133,7 @@ class GroupMatchingService
                 continue;
             }
 
+            DB::reconnect();
             if ($this->groupTaskExistsForPair($userA->id, $userB->id, $category)) {
                 Log::info("[GroupMatching] Skipping '{$category}' for {$pairLabel} — group task already exists today");
                 continue;

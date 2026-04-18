@@ -4,7 +4,8 @@
       "Skill(update-config)",
       "Bash(xargs grep *)",
       "Bash(php artisan *)",
-      "Bash(where php *)"
+      "Bash(where php *)",
+      "Bash(./vendor/bin/sail artisan:*)"
     ]
   }
 }
