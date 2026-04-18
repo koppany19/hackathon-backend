@@ -1,0 +1,287 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\CreatedTaskParticipant;
+use App\Models\Subcategory;
+use App\Models\Task;
+use App\Models\User;
+use Carbon\Carbon;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+
+class GroupMatchingService
+{
+    private const MIN_OVERLAP_MINUTES = 60;
+    private const MIN_CATEGORY_SCORE  = 1;
+    private const DAY_START           = '07:00';
+    private const DAY_END             = '22:00';
+
+    private const CATEGORY_MAP = [
+        'sport'         => ['score_key' => 'sport',  'profile_key' => 'sports'],
+        'meal'          => ['score_key' => 'food',   'profile_key' => 'food'],
+        'mental_health' => ['score_key' => 'social', 'profile_key' => 'social'],
+    ];
+
+    public function __construct(
+        private MatchingService $matchingService,
+        private GeminiGroupTaskService $geminiService,
+    ) {}
+
+    public function run(): void
+    {
+        $today = strtolower(Carbon::today()->format('l'));
+
+        $universityIds = User::whereNotNull('university_id')
+            ->has('profile')
+            ->distinct()
+            ->pluck('university_id');
+
+        foreach ($universityIds as $universityId) {
+            $users = User::with(['profile', 'scheduleItems', 'city'])
+                ->where('university_id', $universityId)
+                ->has('profile')
+                ->get();
+
+            if ($users->count() < 2) continue;
+
+            $this->processUniversityGroup($users, $today);
+        }
+    }
+
+    private function processUniversityGroup(Collection $users, string $today): void
+    {
+        $count = $users->count();
+
+        for ($i = 0; $i < $count; $i++) {
+            for ($j = $i + 1; $j < $count; $j++) {
+                $this->processPair($users[$i], $users[$j], $today);
+            }
+        }
+    }
+
+    private function processPair(User $userA, User $userB, string $today): void
+    {
+        if (!$userA->profile || !$userB->profile) return;
+
+        $overlapWindow = $this->findFreeTimeOverlap($userA, $userB, $today);
+        if (!$overlapWindow) return;
+
+        $score     = $this->matchingService->calculateScore($userA->profile, $userB->profile);
+        $cityName  = $userA->city?->name ?? $userB->city?->name ?? 'your city';
+        $timeWindow = $overlapWindow['start'] . '-' . $overlapWindow['end'];
+        $difficulty = $this->computeDifficulty($userA, $userB, $today);
+
+        foreach (self::CATEGORY_MAP as $category => ['score_key' => $scoreKey, 'profile_key' => $profileKey]) {
+            if ($score[$scoreKey] < self::MIN_CATEGORY_SCORE) continue;
+
+            if ($category === 'meal' && $this->matchingService->hasFoodConflict(
+                $userA->profile->food,
+                $userB->profile->food,
+            )) continue;
+
+            if ($this->groupTaskExistsForPair($userA->id, $userB->id, $category)) continue;
+
+            $sharedInterests = $this->getSharedInterests(
+                $userA->profile->{$profileKey} ?? [],
+                $userB->profile->{$profileKey} ?? [],
+            );
+
+            $this->generateAndPersistTask(
+                $category,
+                $sharedInterests,
+                $cityName,
+                $difficulty,
+                $timeWindow,
+                [$userA, $userB],
+            );
+        }
+    }
+
+    private function generateAndPersistTask(
+        string $category,
+        array $sharedInterests,
+        string $cityName,
+        string $difficulty,
+        string $timeWindow,
+        array $users,
+    ): void {
+        $taskData = $this->geminiService->generateTask(
+            $category,
+            $sharedInterests,
+            $cityName,
+            $difficulty,
+            $timeWindow,
+        );
+
+        if (!$taskData) return;
+
+        $subcategory = Subcategory::where('name', 'group')->first();
+
+        if (!$subcategory) {
+            Log::error('GroupMatchingService: "group" subcategory not found — run seeders.');
+            return;
+        }
+
+        DB::transaction(function () use ($taskData, $subcategory, $users) {
+            $task = Task::create([
+                'title'              => $taskData['title'],
+                'description'        => $taskData['description'],
+                'category'           => $taskData['category'],
+                'subcategory_id'     => $subcategory->id,
+                'is_active'          => true,
+                'difficulty'         => $taskData['difficulty'],
+                'time'               => $taskData['time'],
+                'location'           => $taskData['location'],
+                'created_by_user_id' => null,
+            ]);
+
+            foreach ($users as $user) {
+                CreatedTaskParticipant::create([
+                    'task_id' => $task->id,
+                    'user_id' => $user->id,
+                ]);
+            }
+
+            $this->notifyUsers($users, $task);
+        });
+    }
+
+
+    private function findFreeTimeOverlap(User $userA, User $userB, string $today): ?array
+    {
+        $freeA = $this->computeFreeWindows(
+            $userA->scheduleItems->where('day_of_week', $today)->values()
+        );
+        $freeB = $this->computeFreeWindows(
+            $userB->scheduleItems->where('day_of_week', $today)->values()
+        );
+
+        foreach ($freeA as $windowA) {
+            foreach ($freeB as $windowB) {
+                $overlapStart    = max($windowA['start_min'], $windowB['start_min']);
+                $overlapEnd      = min($windowA['end_min'],   $windowB['end_min']);
+                $overlapDuration = $overlapEnd - $overlapStart;
+
+                if ($overlapDuration >= self::MIN_OVERLAP_MINUTES) {
+                    return [
+                        'start'    => $this->minutesToTime($overlapStart),
+                        'end'      => $this->minutesToTime($overlapEnd),
+                        'duration' => $overlapDuration,
+                    ];
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private function computeFreeWindows(Collection $scheduleItems): array
+    {
+        $dayStart = $this->timeToMinutes(self::DAY_START);
+        $dayEnd   = $this->timeToMinutes(self::DAY_END);
+
+        if ($scheduleItems->isEmpty()) {
+            return [['start_min' => $dayStart, 'end_min' => $dayEnd]];
+        }
+
+        $busy = $scheduleItems
+            ->map(fn ($item) => [
+                'start' => $this->timeToMinutes($item->start_time),
+                'end'   => $this->timeToMinutes($item->end_time),
+            ])
+            ->sortBy('start')
+            ->values()
+            ->toArray();
+
+        $merged = [];
+        foreach ($busy as $block) {
+            if (empty($merged)) {
+                $merged[] = $block;
+                continue;
+            }
+            $last = &$merged[count($merged) - 1];
+            if ($block['start'] <= $last['end']) {
+                $last['end'] = max($last['end'], $block['end']);
+            } else {
+                $merged[] = $block;
+            }
+        }
+
+        $free   = [];
+        $cursor = $dayStart;
+
+        foreach ($merged as $block) {
+            if ($block['start'] > $cursor) {
+                $free[] = ['start_min' => $cursor, 'end_min' => $block['start']];
+            }
+            $cursor = max($cursor, $block['end']);
+        }
+
+        if ($cursor < $dayEnd) {
+            $free[] = ['start_min' => $cursor, 'end_min' => $dayEnd];
+        }
+
+        return $free;
+    }
+
+
+    private function groupTaskExistsForPair(int $userAId, int $userBId, string $category): bool
+    {
+        $todayTaskIds = Task::whereHas('subcategory', fn ($q) => $q->where('name', 'group'))
+            ->where('category', $category)
+            ->whereDate('created_at', Carbon::today())
+            ->pluck('id');
+
+        if ($todayTaskIds->isEmpty()) return false;
+
+        $userATaskIds = CreatedTaskParticipant::where('user_id', $userAId)
+            ->whereIn('task_id', $todayTaskIds)
+            ->pluck('task_id');
+
+        if ($userATaskIds->isEmpty()) return false;
+
+        return CreatedTaskParticipant::where('user_id', $userBId)
+            ->whereIn('task_id', $userATaskIds)
+            ->exists();
+    }
+
+    private function getSharedInterests(array $profileA, array $profileB): array
+    {
+        return array_keys(array_filter(
+            $profileA,
+            fn ($val, $key) => $val && ($profileB[$key] ?? false),
+            ARRAY_FILTER_USE_BOTH,
+        ));
+    }
+
+    private function computeDifficulty(User $userA, User $userB, string $today): string
+    {
+        $occupiedMinutes = fn (User $u) => $u->scheduleItems
+            ->where('day_of_week', $today)
+            ->sum(fn ($item) => $this->timeToMinutes($item->end_time) - $this->timeToMinutes($item->start_time));
+
+        $avg = ($occupiedMinutes($userA) + $occupiedMinutes($userB)) / 2;
+
+        if ($avg > 360) return 'easy';
+        if ($avg >= 180) return 'medium';
+        return 'hard';
+    }
+
+    private function timeToMinutes(string $time): int
+    {
+        [$h, $m] = array_map('intval', explode(':', $time));
+        return $h * 60 + $m;
+    }
+
+    private function minutesToTime(int $minutes): string
+    {
+        return sprintf('%02d:%02d', intdiv($minutes, 60), $minutes % 60);
+    }
+
+    private function notifyUsers(array $users, Task $task): void
+    {
+        // TODO: send push notifications via Expo Push Token once integrated
+    }
+}

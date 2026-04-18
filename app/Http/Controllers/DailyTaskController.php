@@ -75,14 +75,24 @@ class DailyTaskController extends Controller
             ->whereDate('date', Carbon::today())
             ->pluck('task_id');
 
-        $tasks = Task::whereHas('subcategory', fn ($q) => $q->where('name', 'group_created'))
+        // User-created group tasks visible to everyone
+        $userCreatedTasks = Task::whereHas('subcategory', fn ($q) => $q->where('name', 'group_created'))
             ->where('is_active', true)
             ->whereDate('created_at', Carbon::today())
             ->whereNotIn('id', $joinedTaskIds)
             ->with('subcategory', 'creator')
             ->get();
 
-        return response()->json($tasks);
+        // AI-generated group tasks targeted at this specific user
+        $aiGroupTasks = Task::whereHas('subcategory', fn ($q) => $q->where('name', 'group'))
+            ->whereHas('participants', fn ($q) => $q->where('user_id', $user->id))
+            ->where('is_active', true)
+            ->whereDate('created_at', Carbon::today())
+            ->whereNotIn('id', $joinedTaskIds)
+            ->with('subcategory', 'creator')
+            ->get();
+
+        return response()->json($userCreatedTasks->merge($aiGroupTasks)->values());
     }
 
     public function join(Request $request, Task $task): JsonResponse
