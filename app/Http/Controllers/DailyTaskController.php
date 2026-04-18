@@ -63,17 +63,13 @@ class DailyTaskController extends Controller
 
     public function today(Request $request): JsonResponse
     {
-        $user      = $request->user();
-        $today     = strtolower(Carbon::today()->format('l'));
-        $todayDate = Carbon::today();
-
-        $user->load('scheduleItems');
+        $user = $request->user();
 
         $dailyTasks = DailyTask::with('task.subcategory')
             ->where('user_id', $user->id)
-            ->whereDate('date', $todayDate)
+            ->where('date', Carbon::today())
             ->get()
-            ->sortBy(fn ($dt) => match ($dt->task->category) {
+            ->sortBy(fn($dt) => match($dt->task->category) {
                 'meal'          => 1,
                 'sport'         => 2,
                 'mental_health' => 3,
@@ -81,41 +77,9 @@ class DailyTaskController extends Controller
             })
             ->values();
 
-        $joinedTaskIds = $dailyTasks->pluck('task_id');
-
-        $availableTasks = collect();
-
-        if ($user->university_id) {
-            $userCreatedTasks = Task::whereHas('subcategory', fn ($q) => $q->where('name', 'group_created'))
-                ->whereHas('creator', fn ($q) => $q->where('university_id', $user->university_id))
-                ->where('is_active', true)
-                ->whereDate('created_at', $todayDate)
-                ->whereNotIn('id', $joinedTaskIds)
-                ->with(['subcategory', 'creator'])
-                ->get()
-                ->filter(function ($task) use ($user, $today) {
-                    if (! $task->creator) return false;
-                    return $this->groupMatchingService->hasScheduleOverlap($user, $task->creator, $today);
-                })
-                ->values();
-
-            $availableTasks = $availableTasks->merge($userCreatedTasks);
-        }
-
-        $aiGroupTasks = Task::whereHas('subcategory', fn ($q) => $q->where('name', 'group'))
-            ->whereHas('participants', fn ($q) => $q->where('user_id', $user->id))
-            ->where('is_active', true)
-            ->whereDate('created_at', $todayDate)
-            ->whereNotIn('id', $joinedTaskIds)
-            ->with(['subcategory', 'creator'])
-            ->get();
-
-        $availableTasks = $availableTasks->merge($aiGroupTasks)->values();
-
         return response()->json([
-            'date'            => $todayDate->toDateString(),
-            'tasks'           => $dailyTasks,
-            'available_tasks' => $availableTasks,
+            'date'  => Carbon::today()->toDateString(),
+            'tasks' => $dailyTasks,
         ]);
     }
 
