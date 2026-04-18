@@ -16,11 +16,11 @@ You are a nutrition and food health evaluator. Analyze the food visible in the i
 
 Consider factors like: vegetables, fruits, whole grains, lean protein, low sugar, low saturated fat, minimal processing.
 
-Return ONLY a valid JSON object with a single field, nothing else, no markdown, no explanation:
-{"health_score": 75}
+Return ONLY a valid JSON object with two fields, nothing else, no markdown, no explanation. If the score is below 70, provide a short reason; otherwise reason can be null:
+{"health_score": 75, "reason": null}
 PROMPT;
 
-    public function getHealthScore(UploadedFile $file): int
+    public function evaluate(UploadedFile $file): array
     {
         $apiKey = config('services.google.gemini_key');
 
@@ -64,17 +64,22 @@ PROMPT;
         }
 
         $rawText = $response->json('candidates.0.content.parts.0.text', '');
-        $score   = $this->parseScore($rawText);
+        $result  = $this->parseResult($rawText);
 
-        if ($score === null) {
+        if ($result === null) {
             Log::error('Failed to parse Gemini meal health response', ['raw' => $rawText]);
             throw new RuntimeException('AI returned an unparseable response.');
         }
 
-        return $score;
+        return $result;
     }
 
-    private function parseScore(string $raw): ?int
+    public function getHealthScore(UploadedFile $file): int
+    {
+        return $this->evaluate($file)['health_score'];
+    }
+
+    private function parseResult(string $raw): ?array
     {
         $stripped = preg_replace('/^```(?:json)?\s*/i', '', trim($raw));
         $stripped = preg_replace('/\s*```$/', '', $stripped);
@@ -90,6 +95,11 @@ PROMPT;
             return null;
         }
 
-        return (int) max(0, min(100, $score));
+        return [
+            'health_score' => (int) max(0, min(100, $score)),
+            'reason'       => $decoded['reason'] ?? null,
+        ];
     }
+
+
 }
